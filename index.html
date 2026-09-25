@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Vuelos de drones · Variación por vuelo</title>
+<title>Vuelos de drones · Malezas y Madurantes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,26 +11,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --caña:#2f5d34;        /* hoja de caña */
-  --caña-2:#3f7a45;
-  --tallo:#d9b44a;       /* tallo maduro */
-  --suelo:#6b4a2f;
-  --papel:#f6f7f2;
-  --tinta:#1d2419;
-  --gris:#6c7466;
-  --linea:#dfe3d7;
-  --bien:#2f7d3e;
-  --alerta:#c0392b;
-  --aviso:#b7791f;
-  --panel:#ffffff;
+  --verde-fijo:#2f5d34;
+  --caña:#2f5d34; --caña-2:#3f7a45; --tallo:#d9b44a;
+  --papel:#f6f7f2; --tinta:#1d2419; --gris:#6c7466; --linea:#dfe3d7; --panel:#ffffff;
+  --bien:#2f7d3e; --alerta:#c0392b; --aviso:#b7791f; --azul:#1f5fa8;
   box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --papel:#141a13;--panel:#1c241b;--tinta:#e8ecdf;--gris:#9aa393;--linea:#2e392c;
-    --caña:#6fae6f;--caña-2:#86c386;--tallo:#e2c160;
+    --caña:#5e9e60;--caña-2:#3f7a45;--bien:#5fbf6e;--alerta:#e5645a;--aviso:#e0a33c;--azul:#6aa5ec;
   }
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -40,78 +31,88 @@ h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0;lette
 button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:1400px;margin:0 auto;padding:0 20px}
 
-/* Barra superior con franja de surcos */
-header.top{background:var(--caña);color:#fff;position:relative}
-header.top::after{content:"";display:block;height:8px;
-  background:repeating-linear-gradient(90deg,var(--tallo) 0 18px,transparent 18px 26px)}
+header.top{background:var(--verde-fijo);color:#fff}
+header.top::after{content:"";display:block;height:8px;background:repeating-linear-gradient(90deg,var(--tallo) 0 18px,transparent 18px 26px)}
 .top .wrap{display:flex;align-items:center;gap:16px;padding-top:18px;padding-bottom:16px;flex-wrap:wrap}
 .top h1{font-size:30px;font-weight:700;line-height:1.1}
 .top p{margin:2px 0 0;opacity:.85;font-size:14px}
 .top .acciones{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 
-.btn{border:0;border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer;background:var(--panel);color:var(--tinta);border:1px solid var(--linea)}
+.btn{border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer;background:var(--panel);color:var(--tinta);border:1px solid var(--linea)}
 .btn:hover{border-color:var(--caña)}
-.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--tallo);outline-offset:1px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible{outline:3px solid var(--tallo);outline-offset:1px}
 .btn.prim{background:var(--tallo);color:#2a2106;border-color:var(--tallo)}
-.btn.prim:hover{filter:brightness(1.05)}
-.btn.verde{background:var(--caña);color:#fff;border-color:var(--caña)}
+.btn.verde{background:var(--caña-2);color:#fff;border-color:var(--caña-2)}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
-.top .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
+.top .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
 .top .btn.prim{background:var(--tallo);color:#2a2106;border-color:var(--tallo)}
 
-/* Zona de carga */
-.carga{margin:28px auto;border:2px dashed var(--linea);border-radius:10px;padding:48px 20px;text-align:center;background:var(--panel)}
-.carga.sobre{border-color:var(--tallo);background:color-mix(in srgb,var(--tallo) 10%,var(--panel))}
-.carga h2{font-size:26px}
-.carga p{color:var(--gris);max-width:560px;margin:8px auto 18px}
+/* Estado de conexión */
+.conexion{display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:14px;color:var(--gris);flex-wrap:wrap}
+.conexion .punto{width:10px;height:10px;border-radius:50%;background:var(--gris);flex:none}
+.conexion.ok .punto{background:var(--bien)}
+.conexion.mal .punto{background:var(--alerta)}
+.conexion.mal{color:var(--alerta)}
+.conexion button{padding:3px 10px;font-size:13px}
 
-/* Resumen */
-.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:10px;overflow:hidden;margin:22px 0}
+/* Paso 1: subir */
+.subir{margin:16px 0;background:var(--panel);border:2px dashed var(--linea);border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.subir.sobre{border-color:var(--tallo)}
+.subir .txt{flex:1;min-width:240px}
+.subir h2{font-size:22px}
+.subir p{margin:2px 0 0;color:var(--gris);font-size:14px}
+.subir.pendiente{border-style:solid;border-color:var(--tallo);background:color-mix(in srgb,var(--tallo) 8%,var(--panel))}
+.subir.pendiente p{color:var(--tinta)}
+
+.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:10px;overflow:hidden;margin:18px 0}
 .dato{background:var(--panel);padding:14px 16px}
 .dato b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:30px;font-weight:600;line-height:1.1}
 .dato span{color:var(--gris);font-size:13px}
 .dato.alerta b{color:var(--alerta)}
 
 .filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filtros select{border:1px solid var(--linea);border-radius:999px;padding:5px 12px;background:var(--panel);font-weight:600}
 .chip{border:1px solid var(--linea);background:var(--panel);border-radius:999px;padding:5px 14px;cursor:pointer;font-weight:600}
-.chip[aria-pressed="true"]{background:var(--caña);border-color:var(--caña);color:#fff}
-.filtros .sep{flex:1}
+.chip[aria-pressed="true"]{background:var(--caña-2);border-color:var(--caña-2);color:#fff}
 
 .dos{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px}
 @media (max-width:900px){.dos{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:16px}
-.panel h2{font-size:21px;margin-bottom:10px}
-.nota{color:var(--gris);font-size:13px}
-.graf{position:relative;height:300px}
+.panel h2{font-size:21px;margin-bottom:6px}
+.nota{color:var(--gris);font-size:13px;margin:0 0 8px}
+.graf-scroll{overflow-x:auto}
+.graf{position:relative;height:320px;min-width:100%}
 
-.tabla-scroll{overflow-x:auto;border:1px solid var(--linea);border-radius:10px;background:var(--panel)}
+.tabla-scroll{overflow:auto;max-height:70vh;border:1px solid var(--linea);border-radius:10px;background:var(--panel)}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{padding:7px 9px;border-bottom:1px solid var(--linea);white-space:nowrap;text-align:left}
 th{background:var(--caña-2);color:#fff;font-weight:600;position:sticky;top:0;z-index:1}
-th.fijo{background:var(--caña)}
+th.fijo{background:var(--verde-fijo)}
+th.edit{background:#8a6d1c}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 tr.fuera td{background:color-mix(in srgb,var(--alerta) 7%,transparent)}
-tr.fuera.just td{background:color-mix(in srgb,var(--aviso) 7%,transparent)}
-.pos{color:var(--alerta);font-weight:600}.neg{color:#1f5fa8;font-weight:600}.ok{color:var(--bien);font-weight:600}
+tr.fuera.just td{background:color-mix(in srgb,var(--aviso) 8%,transparent)}
+tr.cambio td:first-child{box-shadow:inset 4px 0 0 var(--tallo)}
+.pos{color:var(--alerta);font-weight:600}.neg{color:var(--azul);font-weight:600}.ok{color:var(--bien);font-weight:600}
 td input,td select{border:1px solid var(--linea);border-radius:5px;padding:4px 6px;background:var(--papel);min-width:0}
-td input.lote{width:80px}
-td input.sup{width:170px}
-td input.tasa{width:64px;text-align:right}
-td select{max-width:220px}
+td input.lote{width:80px} td input.sup{width:170px} td select{max-width:230px}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .pill.b{background:color-mix(in srgb,var(--bien) 15%,transparent);color:var(--bien)}
 .pill.m{background:color-mix(in srgb,var(--alerta) 15%,transparent);color:var(--alerta)}
 .pill.j{background:color-mix(in srgb,var(--aviso) 18%,transparent);color:var(--aviso)}
+.pill.n{background:color-mix(in srgb,var(--tallo) 25%,transparent);color:var(--tinta)}
 
-.barra-guardar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 40px}
+.barra-guardar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 40px;padding:10px 14px;background:var(--panel);border:1px solid var(--linea);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12)}
 .barra-guardar .estado{color:var(--gris)}
+.barra-guardar .estado a{color:var(--caña)}
 .masivo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
 .masivo input{border:1px solid var(--linea);border-radius:6px;padding:7px 9px;background:var(--panel)}
 
-/* Ajustes */
+.vacio{text-align:center;padding:50px 20px;color:var(--gris)}
+
 dialog{border:0;border-radius:12px;padding:0;max-width:760px;width:calc(100% - 24px);background:var(--panel);color:var(--tinta)}
 dialog::backdrop{background:rgba(10,20,10,.5)}
-.dlg-cab{background:var(--caña);color:#fff;padding:14px 18px;display:flex;align-items:center}
+.dlg-cab{background:var(--verde-fijo);color:#fff;padding:14px 18px}
 .dlg-cab h2{font-size:22px}
 .dlg-cuerpo{padding:18px;display:grid;gap:18px;max-height:70vh;overflow:auto}
 .dlg-cuerpo label{font-weight:600;display:block;margin-bottom:4px}
@@ -119,7 +120,7 @@ dialog::backdrop{background:rgba(10,20,10,.5)}
 .dlg-cuerpo textarea{min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
 .dlg-pie{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--linea)}
 .oculto{display:none!important}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 16px;border-radius:8px;z-index:50;max-width:90vw}
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 16px;border-radius:8px;z-index:50;max-width:90vw}
 @media (prefers-reduced-motion:no-preference){.toast{animation:sube .25s ease-out}@keyframes sube{from{opacity:0;transform:translate(-50%,8px)}}}
 </style>
 </head>
@@ -132,52 +133,59 @@ dialog::backdrop{background:rgba(10,20,10,.5)}
       <p>Variación real vs. litros teóricos por hectárea · Malezas y Madurantes</p>
     </div>
     <div class="acciones">
+      <button class="btn prim" id="btnActualizar" type="button">Actualizar</button>
       <button class="btn" id="btnAjustes" type="button">Ajustes</button>
-      <button class="btn prim" id="btnCargar" type="button">Cargar Excel de DJI</button>
-      <input type="file" id="archivo" accept=".xlsx,.xls,.csv" hidden>
     </div>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="carga" id="zonaCarga">
-    <h2>Carga el Excel que bajaste de la plataforma DJI</h2>
-    <p>Arrastra el archivo aquí o usa el botón. Se calcula la variación de cada vuelo según la plantilla (Team Name) y luego lo guardas en Drive y en tu hoja.</p>
-    <button class="btn prim" type="button" onclick="document.getElementById('archivo').click()">Elegir archivo</button>
+  <div class="conexion" id="conexion"><span class="punto"></span><span id="conexionTxt">Sin conectar</span></div>
+
+  <!-- 1. Subir Excel nuevo -->
+  <section class="subir" id="zonaSubir">
+    <div class="txt" id="subirTxt">
+      <h2>¿Quieres subir un Excel nuevo? Hazlo aquí</h2>
+      <p>Arrastra el Excel que bajaste de la plataforma DJI o elígelo. Se guarda en la carpeta VUELOS DRONES 26-27 y los vuelos pasan a BOCETO.</p>
+    </div>
+    <div id="subirAcciones" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn prim" type="button" id="btnElegir">Elegir Excel de DJI</button>
+    </div>
+    <input type="file" id="archivo" accept=".xlsx,.xls,.csv" hidden>
   </section>
 
-  <div id="tablero" class="oculto">
-    <div class="resumen" id="resumen"></div>
+  <!-- 2. Datos subidos + dashboard -->
+  <div id="vacio" class="vacio panel">Todavía no hay vuelos. Sube un Excel de DJI o toca <b>Actualizar</b> para traer los que ya están en BOCETO.</div>
 
+  <div id="tablero" class="oculto">
     <div class="filtros" id="filtros"></div>
+    <div class="resumen" id="resumen"></div>
 
     <div class="dos">
       <section class="panel">
         <h2>Variación por vuelo</h2>
         <p class="nota" id="notaGraf"></p>
-        <div class="graf"><canvas id="grafVuelos"></canvas></div>
+        <div class="graf-scroll"><div class="graf" id="grafCaja"><canvas id="grafVuelos"></canvas></div></div>
       </section>
       <section class="panel">
         <h2>Resumen por drone</h2>
-        <div class="tabla-scroll" style="border:0">
-          <table id="tablaDrones"></table>
-        </div>
+        <div style="overflow-x:auto"><table id="tablaDrones"></table></div>
       </section>
     </div>
 
     <h2 style="font-size:24px;margin:26px 0 4px">Detalle de vuelos</h2>
-    <p class="nota">Las columnas verde oscuro son las fijas de tu boceto. Solo editas <b>No. justificación</b>, <b>Lote</b> y <b>Supervisor</b>.</p>
+    <p class="nota">Solo se editan las columnas en dorado: <b>Lote</b>, <b>Supervisor</b> y <b>Justificación</b>. Las filas que cambies se marcan a la izquierda hasta que guardes.</p>
     <div class="masivo">
       <input id="supTodos" list="listaSup" placeholder="Supervisor para todos">
-      <button class="btn" type="button" id="btnSupTodos">Aplicar a los vuelos visibles</button>
+      <button class="btn" type="button" id="btnSupTodos">Aplicar a los vuelos filtrados</button>
       <input id="loteTodos" placeholder="Lote para todos" style="width:150px">
       <button class="btn" type="button" id="btnLoteTodos">Aplicar lote</button>
     </div>
     <div class="tabla-scroll"><table id="tablaVuelos"></table></div>
 
     <div class="barra-guardar">
-      <button class="btn verde" type="button" id="btnGuardar">Guardar en Drive y en la hoja</button>
-      <button class="btn" type="button" id="btnDescargar">Descargar Excel procesado</button>
+      <button class="btn verde" type="button" id="btnGuardar" disabled>Guardar</button>
+      <button class="btn" type="button" id="btnDescargar">Descargar Excel</button>
       <span class="estado" id="estado"></span>
     </div>
   </div>
@@ -189,28 +197,27 @@ dialog::backdrop{background:rgba(10,20,10,.5)}
   <div class="dlg-cab"><h2>Ajustes</h2></div>
   <div class="dlg-cuerpo">
     <div>
+      <label for="cfgUrl">URL del Apps Script de BOCETO</label>
+      <input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <p class="nota" style="margin-top:4px">Es la que termina en /exec. <button class="btn" type="button" id="btnProbar" style="padding:3px 10px;font-size:13px">Probar conexión</button> <span id="probarTxt"></span></p>
+    </div>
+    <div>
       <label for="cfgPlantillas">Plantillas (Team Name) y litros por hectárea</label>
       <textarea id="cfgPlantillas"></textarea>
       <p class="nota">Una por línea: <code>nombre = litros</code>. Mayúsculas, tildes y espacios no importan.</p>
     </div>
     <div>
-      <label for="cfgJust">Justificaciones (hoja 2)</label>
+      <label for="cfgJust">Justificaciones</label>
       <textarea id="cfgJust"></textarea>
-      <p class="nota">Una por línea: <code>número = texto</code>. Al elegir el número en la tabla sale el texto automáticamente.</p>
+      <p class="nota">Una por línea: <code>número = texto</code>.</p>
     </div>
     <div>
       <label for="cfgSup">Supervisores</label>
       <textarea id="cfgSup" style="min-height:90px"></textarea>
-      <p class="nota">Uno por línea. Aparecen como sugerencias al escribir.</p>
     </div>
     <div>
       <label for="cfgTol">Tolerancia de variación (%)</label>
       <input id="cfgTol" type="number" step="0.5" min="0" style="width:120px">
-      <p class="nota">Dentro de este rango el vuelo sale como “Bueno”. Fuera, pide justificación.</p>
-    </div>
-    <div>
-      <label for="cfgUrl">URL del Apps Script (guardar en Drive y hoja)</label>
-      <input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
     </div>
   </div>
   <div class="dlg-pie">
@@ -220,7 +227,9 @@ dialog::backdrop{background:rgba(10,20,10,.5)}
 </dialog>
 
 <script>
-/* ============ Configuración por defecto ============ */
+/* ======= Pega aquí la URL /exec para que todo el equipo la tenga sin configurar ======= */
+const URL_SCRIPT = '';
+
 const DEF_PLANTILLAS = `MT madurante 25 26 = 14
 Pre y bio = 10
 Pre 25 = 20
@@ -234,7 +243,6 @@ const DEF_JUST = `1 = TRAMO CORTO`;
 const DEF_SUP = `Ing. Manuel Corado`;
 const DEF_TOL = 5;
 
-/* Columnas fijas del boceto (A–T) + control */
 const COLUMNAS = [
   'FECHA','HORA INICIO','HORA FIN','DURACION','DRONE','PILOTO','UBICACION','PLANTILLA',
   'LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES',
@@ -242,20 +250,21 @@ const COLUMNAS = [
   'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO'
 ];
 
-/* ============ Estado ============ */
-const S = { vuelos:[], archivo:null, nombreArchivo:'', filtro:'TODOS', cfg:null };
+/* ======= Estado ======= */
+const S = {
+  guardados: [],        // vuelos que ya están en BOCETO
+  pendientes: [],       // vuelos nuevos del Excel cargado, sin guardar
+  repetidos: 0,
+  archivo: null, nombreDrive: '',
+  fecha: 'TODAS', drone: 'TODOS',
+  cfg: null, conectado: null
+};
 let grafico = null;
 
 function leerCfg(){
   let c = {};
   try { c = JSON.parse(localStorage.getItem('vuelosCfg') || '{}'); } catch(e){ c = {}; }
-  return {
-    plantillas: c.plantillas ?? DEF_PLANTILLAS,
-    just: c.just ?? DEF_JUST,
-    sup: c.sup ?? DEF_SUP,
-    tol: c.tol ?? DEF_TOL,
-    url: c.url ?? ''
-  };
+  return { plantillas:c.plantillas ?? DEF_PLANTILLAS, just:c.just ?? DEF_JUST, sup:c.sup ?? DEF_SUP, tol:c.tol ?? DEF_TOL, url:c.url || URL_SCRIPT };
 }
 function guardarCfg(){ try { localStorage.setItem('vuelosCfg', JSON.stringify(S.cfg)); } catch(e){} }
 
@@ -263,8 +272,7 @@ const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,''
 function mapaPlantillas(){
   const m = {};
   S.cfg.plantillas.split('\n').forEach(l => {
-    const i = l.lastIndexOf('=');
-    if (i < 0) return;
+    const i = l.lastIndexOf('='); if (i < 0) return;
     const k = norm(l.slice(0,i)), v = parseFloat(l.slice(i+1).replace(',','.'));
     if (k && !isNaN(v)) m[k] = v;
   });
@@ -273,126 +281,163 @@ function mapaPlantillas(){
 function listaJust(){
   const m = {};
   S.cfg.just.split('\n').forEach(l => {
-    const i = l.indexOf('=');
-    if (i < 0) return;
+    const i = l.indexOf('='); if (i < 0) return;
     const n = l.slice(0,i).trim(), t = l.slice(i+1).trim();
     if (n && t) m[n] = t;
   });
   return m;
 }
 const listaSup = () => S.cfg.sup.split('\n').map(s=>s.trim()).filter(Boolean);
+function num(v){ if (typeof v === 'number') return v; const x = parseFloat(String(v ?? '').replace('%','').replace(',','.')); return isNaN(x) ? null : x; }
+const dos = n => String(n).padStart(2,'0');
 
-/* ============ Lectura del Excel DJI ============ */
+/* ======= Leer Excel de DJI ======= */
 const CAMPOS = {
-  tiempo:['flighttime'], ubic:['location'], drone:['aircraftname'], tarea:['tasktype'],
-  area:['sprayedarea'], litros:['totalamount'], dur:['flightduration'],
-  piloto:['pilotname'], plantilla:['teamname'], campo:['fieldname'], serie:['serialnumber']
+  tiempo:['flighttime'], ubic:['location'], drone:['aircraftname'], area:['sprayedarea'], litros:['totalamount'],
+  dur:['flightduration'], piloto:['pilotname'], plantilla:['teamname'], serie:['serialnumber']
 };
 function hallarCol(cab, claves){
   const n = cab.map(c => norm(c).toLowerCase());
   for (const k of claves){ const i = n.findIndex(c => c.startsWith(k)); if (i >= 0) return i; }
   return -1;
 }
-function num(v){ if (typeof v === 'number') return v; const x = parseFloat(String(v ?? '').replace(',','.')); return isNaN(x) ? null : x; }
-const dos = n => String(n).padStart(2,'0');
-
 function partirTiempo(v){
-  if (v instanceof Date){
-    return { fecha:`${v.getFullYear()}-${dos(v.getMonth()+1)}-${dos(v.getDate())}`, ini:`${dos(v.getHours())}:${dos(v.getMinutes())}:${dos(v.getSeconds())}`, fin:'' };
-  }
+  if (v instanceof Date) return { fecha:`${v.getFullYear()}-${dos(v.getMonth()+1)}-${dos(v.getDate())}`, ini:`${dos(v.getHours())}:${dos(v.getMinutes())}:${dos(v.getSeconds())}`, fin:'' };
   const s = String(v ?? '').trim();
   const m = s.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:~\s*(\d{1,2}:\d{2}(?::\d{2})?))?/);
-  if (m) return { fecha:m[1], ini:m[2], fin:m[3] || '' };
-  return { fecha:s, ini:'', fin:'' };
+  return m ? { fecha:m[1], ini:m[2], fin:m[3] || '' } : { fecha:s, ini:'', fin:'' };
 }
-
-function procesarLibro(buf, nombre){
+function leerExcelDJI(buf){
   const wb = XLSX.read(buf, { type:'array', cellDates:true });
-  const hoja = wb.Sheets[wb.SheetNames[0]];
-  const filas = XLSX.utils.sheet_to_json(hoja, { header:1, raw:true, defval:'' });
+  const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, raw:true, defval:'' });
   const iCab = filas.findIndex((f,i) => i < 15 && f.some(c => norm(c) === 'SPRAYEDAREA'));
   if (iCab < 0) throw new Error('No encontré la columna "Sprayed area". ¿Es el Excel que baja la plataforma DJI?');
-  const cab = filas[iCab];
-  const col = {};
-  for (const k in CAMPOS) col[k] = hallarCol(cab, CAMPOS[k]);
+  const col = {}; for (const k in CAMPOS) col[k] = hallarCol(filas[iCab], CAMPOS[k]);
   for (const k of ['area','litros','plantilla','drone']) if (col[k] < 0) throw new Error(`Falta la columna ${k} en el Excel.`);
-
-  const plant = mapaPlantillas();
-  const vuelos = [];
+  const plant = mapaPlantillas(), sup1 = listaSup()[0] || '';
+  const out = [];
   filas.slice(iCab+1).forEach((f, idx) => {
     const area = num(f[col.area]), litros = num(f[col.litros]);
     if (!area || area <= 0 || litros === null) return;
     const t = partirTiempo(col.tiempo >= 0 ? f[col.tiempo] : '');
     const plantilla = String(f[col.plantilla] ?? '').trim();
-    const tasa = plant[norm(plantilla)] ?? null;
+    const drone = String(f[col.drone] ?? '').trim() || 'Sin nombre';
     const serie = col.serie >= 0 ? String(f[col.serie]).trim() : '';
-    vuelos.push({
-      id: serie || `${String(f[col.drone]).trim()}_${t.fecha}_${t.ini}_${idx}`,
-      fecha:t.fecha, ini:t.ini, fin:t.fin,
-      dur: col.dur >= 0 ? String(f[col.dur]) : '',
-      drone: String(f[col.drone] ?? '').trim() || 'Sin nombre',
-      piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '',
-      ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
-      plantilla, tasa, tasaConocida: tasa !== null,
-      area, litros,
-      nJust:'', lote:'', sup:''
+    out.push({
+      id: serie || `${drone}_${t.fecha}_${t.ini}_${idx}`,
+      fecha:t.fecha, ini:t.ini, fin:t.fin, dur: col.dur >= 0 ? String(f[col.dur]) : '',
+      drone, piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '', ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
+      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros,
+      nJust:'', lote:'', sup:sup1, archivo:'', nuevo:true, cambio:false
     });
   });
-  if (!vuelos.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
-  vuelos.sort((a,b) => (a.fecha+a.ini).localeCompare(b.fecha+b.ini));
-  return vuelos;
+  if (!out.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
+  return out;
 }
 
-/* ============ Cálculos ============ */
+/* ======= Datos que vienen de BOCETO ======= */
+function desdeHoja(headers, rows){
+  const ix = {}; headers.forEach((h,i) => ix[norm(h)] = i);
+  const g = (r,h) => { const i = ix[norm(h)]; return i === undefined ? '' : r[i]; };
+  const plant = mapaPlantillas();
+  return rows.filter(r => String(g(r,'ID VUELO')).trim()).map(r => {
+    const plantilla = String(g(r,'PLANTILLA')).trim();
+    return {
+      id:String(g(r,'ID VUELO')).trim(), fecha:String(g(r,'FECHA')), ini:String(g(r,'HORA INICIO')), fin:String(g(r,'HORA FIN')),
+      dur:String(g(r,'DURACION')), drone:String(g(r,'DRONE')).trim(), piloto:String(g(r,'PILOTO')), ubic:String(g(r,'UBICACION')),
+      plantilla, tasa: num(g(r,'LTS/HA TEORICO')) ?? plant[norm(plantilla)] ?? null,
+      area:num(g(r,'AREA (HA)')) || 0, litros:num(g(r,'LTS REALES')) || 0,
+      nJust:String(g(r,'OBSERVACION') ?? '').trim(), lote:String(g(r,'LOTE') ?? '').trim(), sup:String(g(r,'SUPERVISOR') ?? '').trim(),
+      archivo:String(g(r,'ARCHIVO')), nuevo:false, cambio:false
+    };
+  }).filter(v => v.area > 0);
+}
+
+/* ======= Cálculos ======= */
 function calc(v){
-  const r = { real:null, ltsTeo:null, dif:null, pctVar:null, varReal:null, dentro:null };
-  r.real = v.litros / v.area;                           // REAL APLICADO (L/ha)
+  const r = { real: v.area ? v.litros / v.area : null, ltsTeo:null, dif:null, pctVar:null, varReal:null, dentro:null };
   if (v.tasa){
-    r.ltsTeo = v.area * v.tasa;                         // LTS TEORICOS
-    r.dif = v.litros - r.ltsTeo;                        // LTS DIF
-    r.pctVar = v.litros ? r.dif / v.litros : null;      // PORCENTAJE DE VAR (sobre lo real)
-    r.varReal = (r.real - v.tasa) / v.tasa;             // VAR REAL APLICADO (sobre lo teórico)
+    r.ltsTeo = v.area * v.tasa;
+    r.dif = v.litros - r.ltsTeo;
+    r.pctVar = v.litros ? r.dif / v.litros : null;
+    r.varReal = (r.real - v.tasa) / v.tasa;
     r.dentro = Math.abs(r.varReal) * 100 <= S.cfg.tol;
   }
   const J = listaJust();
-  r.just = v.nJust && J[v.nJust] ? J[v.nJust] : (r.dentro ? 'Bueno' : '');
+  r.just = v.nJust && J[v.nJust] ? J[v.nJust] : (v.nJust ? `#${v.nJust}` : (r.dentro ? 'Bueno' : ''));
   return r;
 }
 
-/* ============ Formato ============ */
 const f2 = n => n === null || n === undefined || isNaN(n) ? '–' : n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pc = n => n === null || n === undefined || isNaN(n) ? '–' : (n*100).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clase = x => x === null ? '' : (x > 0 ? 'pos' : 'neg');
 
-/* ============ Render ============ */
-const visibles = () => S.filtro === 'TODOS' ? S.vuelos : S.vuelos.filter(v => v.drone === S.filtro);
+/* ======= Vistas ======= */
+const todos = () => [...S.guardados, ...S.pendientes].sort((a,b) => (a.fecha+a.ini).localeCompare(b.fecha+b.ini));
+const porFecha = () => todos().filter(v => S.fecha === 'TODAS' || v.fecha === S.fecha);
+const visibles = () => porFecha().filter(v => S.drone === 'TODOS' || v.drone === S.drone);
+const porGuardar = () => [...S.pendientes, ...S.guardados.filter(v => v.cambio)];
 
 function render(){
-  document.getElementById('zonaCarga').classList.toggle('oculto', S.vuelos.length > 0);
-  document.getElementById('tablero').classList.toggle('oculto', S.vuelos.length === 0);
-  if (!S.vuelos.length) return;
+  const hay = todos().length > 0;
+  document.getElementById('vacio').classList.toggle('oculto', hay);
+  document.getElementById('tablero').classList.toggle('oculto', !hay);
+  renderSubir(); renderConexion(); renderBotonGuardar();
+  if (!hay) return;
   renderFiltros(); renderResumen(); renderDrones(); renderGrafico(); renderTabla();
 }
 
+function renderConexion(){
+  const el = document.getElementById('conexion'), t = document.getElementById('conexionTxt');
+  el.classList.remove('ok','mal');
+  if (!S.cfg.url){ el.classList.add('mal'); t.innerHTML = 'Falta conectar con BOCETO: pega la URL del Apps Script en <b>Ajustes</b>. Mientras tanto nada se guarda.'; return; }
+  if (S.conectado === true){ el.classList.add('ok'); t.textContent = `Conectado a BOCETO: ${S.guardados.length} vuelos guardados.`; }
+  else if (S.conectado === false){ el.classList.add('mal'); t.textContent = 'No se pudo leer BOCETO. Revisa la URL en Ajustes o toca Actualizar.'; }
+  else t.textContent = 'Conectando con BOCETO…';
+}
+
+function renderSubir(){
+  const z = document.getElementById('zonaSubir'), tx = document.getElementById('subirTxt'), ac = document.getElementById('subirAcciones');
+  if (S.pendientes.length){
+    z.classList.add('pendiente');
+    tx.innerHTML = `<h2>Excel nuevo listo para guardar</h2><p><b>${S.pendientes.length}</b> vuelos nuevos de <b>${esc(S.archivo.name)}</b>${S.repetidos?` · ${S.repetidos} ya estaban en BOCETO y no se repiten`:''}. Revísalos abajo y toca <b>Guardar</b>.</p>`;
+    ac.innerHTML = `<button class="btn" type="button" id="btnDescartar">Descartar</button><button class="btn prim" type="button" id="btnElegir">Cambiar archivo</button>`;
+    document.getElementById('btnDescartar').onclick = () => { S.pendientes = []; S.archivo = null; S.repetidos = 0; render(); };
+  } else {
+    z.classList.remove('pendiente');
+    tx.innerHTML = `<h2>¿Quieres subir un Excel nuevo? Hazlo aquí</h2><p>Arrastra el Excel que bajaste de la plataforma DJI o elígelo. Se guarda en la carpeta VUELOS DRONES 26-27 y los vuelos pasan a BOCETO.</p>`;
+    ac.innerHTML = `<button class="btn prim" type="button" id="btnElegir">Elegir Excel de DJI</button>`;
+  }
+  document.getElementById('btnElegir').onclick = () => document.getElementById('archivo').click();
+}
+
+function renderBotonGuardar(){
+  const n = porGuardar().length, b = document.getElementById('btnGuardar');
+  b.disabled = n === 0;
+  b.textContent = S.pendientes.length ? `Guardar Excel nuevo en Drive y BOCETO (${n})` : (n ? `Guardar cambios en BOCETO (${n})` : 'Todo guardado');
+}
+
 function renderFiltros(){
-  const drones = [...new Set(S.vuelos.map(v => v.drone))].sort();
+  const fechas = [...new Set(todos().map(v => v.fecha))].sort().reverse();
+  if (S.fecha !== 'TODAS' && !fechas.includes(S.fecha)) S.fecha = 'TODAS';
+  const drones = [...new Set(porFecha().map(v => v.drone))].sort();
+  if (S.drone !== 'TODOS' && !drones.includes(S.drone)) S.drone = 'TODOS';
   const el = document.getElementById('filtros');
-  el.innerHTML = ['TODOS', ...drones].map(d =>
-    `<button class="chip" type="button" aria-pressed="${S.filtro===d}" data-d="${esc(d)}">${d==='TODOS'?'Todos los drones':esc(d)}</button>`
-  ).join('') + `<span class="sep"></span><span class="nota">Archivo: ${esc(S.nombreArchivo)}</span>`;
-  el.querySelectorAll('.chip').forEach(b => b.onclick = () => { S.filtro = b.dataset.d; render(); });
+  el.innerHTML = `<select id="selFecha" aria-label="Fecha"><option value="TODAS">Todas las fechas</option>${fechas.map(f => `<option ${f===S.fecha?'selected':''}>${esc(f)}</option>`).join('')}</select>`
+    + ['TODOS', ...drones].map(d => `<button class="chip" type="button" aria-pressed="${S.drone===d}" data-d="${esc(d)}">${d==='TODOS'?'Todos los drones':esc(d)}</button>`).join('');
+  el.querySelector('#selFecha').onchange = e => { S.fecha = e.target.value; render(); };
+  el.querySelectorAll('.chip').forEach(b => b.onclick = () => { S.drone = b.dataset.d; render(); });
 }
 
 function agregado(lista){
-  let area=0, litros=0, teo=0, litrosConTasa=0, fuera=0, pend=0, sinTasa=0;
+  let area=0, litros=0, teo=0, litrosT=0, fuera=0, pend=0, sinTasa=0;
   lista.forEach(v => {
-    const r = calc(v);
-    area += v.area; litros += v.litros;
-    if (r.ltsTeo !== null){ teo += r.ltsTeo; litrosConTasa += v.litros; } else sinTasa++;
+    const r = calc(v); area += v.area; litros += v.litros;
+    if (r.ltsTeo !== null){ teo += r.ltsTeo; litrosT += v.litros; } else sinTasa++;
     if (r.dentro === false){ fuera++; if (!v.nJust) pend++; }
   });
-  return { n:lista.length, area, litros, teo, real: area ? litros/area : null, var: teo ? (litrosConTasa-teo)/teo : null, fuera, pend, sinTasa };
+  return { n:lista.length, area, litros, real: area ? litros/area : null, var: teo ? (litrosT-teo)/teo : null, fuera, pend, sinTasa };
 }
 
 function renderResumen(){
@@ -408,195 +453,224 @@ function renderResumen(){
 }
 
 function renderDrones(){
-  const drones = [...new Set(S.vuelos.map(v => v.drone))].sort();
+  const base = porFecha(), drones = [...new Set(base.map(v => v.drone))].sort();
   let h = `<thead><tr><th>Drone</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Fuera</th></tr></thead><tbody>`;
   drones.forEach(d => {
-    const a = agregado(S.vuelos.filter(v => v.drone === d));
+    const a = agregado(base.filter(v => v.drone === d));
     h += `<tr><td><b>${esc(d)}</b></td><td class="num">${a.n}</td><td class="num">${f2(a.area)}</td><td class="num">${f2(a.real)}</td><td class="num ${clase(a.var)}">${pc(a.var)}</td><td class="num">${a.fuera}</td></tr>`;
   });
   document.getElementById('tablaDrones').innerHTML = h + '</tbody>';
 }
 
 function renderGrafico(){
-  const lista = visibles();
-  const cs = getComputedStyle(document.documentElement);
-  const cBien = cs.getPropertyValue('--bien').trim(), cMal = cs.getPropertyValue('--alerta').trim(), cJ = cs.getPropertyValue('--aviso').trim();
+  const lista = visibles(), cs = getComputedStyle(document.documentElement), c = n => cs.getPropertyValue(n).trim();
   const datos = lista.map(v => { const r = calc(v); return r.varReal === null ? null : +(r.varReal*100).toFixed(2); });
-  const colores = lista.map(v => { const r = calc(v); return r.dentro ? cBien : (v.nJust ? cJ : cMal); });
-  const etiquetas = lista.map(v => `${v.drone} ${v.ini.slice(0,5)}`);
-  document.getElementById('notaGraf').textContent =
-    `Barras = % de variación de cada vuelo contra su plantilla. Verde dentro de ±${S.cfg.tol}%, ámbar justificado, rojo pendiente.`;
+  const colores = lista.map(v => { const r = calc(v); return r.dentro ? c('--bien') : (v.nJust ? c('--aviso') : c('--alerta')); });
+  const unaFecha = new Set(lista.map(v => v.fecha)).size === 1;
+  const etiquetas = lista.map(v => `${v.drone} ${unaFecha ? '' : v.fecha.slice(5)+' '}${v.ini.slice(0,5)}`);
+  document.getElementById('grafCaja').style.width = Math.max(lista.length * 14, 0) + 'px';
+  document.getElementById('notaGraf').textContent = `Cada barra es un vuelo contra su plantilla. Verde dentro de ±${S.cfg.tol}%, ámbar justificado, rojo pendiente.${lista.length > 60 ? ' Desliza hacia los lados para ver todos.' : ''}`;
   const tol = S.cfg.tol;
-  const cfg = {
+  if (grafico) grafico.destroy();
+  grafico = new Chart(document.getElementById('grafVuelos'), {
     type:'bar',
     data:{ labels:etiquetas, datasets:[
-      { label:'Variación %', data:datos, backgroundColor:colores, borderRadius:3 },
-      { type:'line', label:`+${tol}%`, data:lista.map(()=>tol), borderColor:cs.getPropertyValue('--tallo').trim(), borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
-      { type:'line', label:`-${tol}%`, data:lista.map(()=>-tol), borderColor:cs.getPropertyValue('--tallo').trim(), borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
+      { label:'Variación %', data:datos, backgroundColor:colores, borderRadius:2 },
+      { type:'line', data:lista.map(()=>tol), borderColor:c('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
+      { type:'line', data:lista.map(()=>-tol), borderColor:c('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
     ]},
     options:{
       responsive:true, maintainAspectRatio:false, animation:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{
+      plugins:{ legend:{display:false}, tooltip:{ filter: it => it.datasetIndex === 0, callbacks:{
         title: it => { const v = lista[it[0].dataIndex]; return `${v.drone} · ${v.fecha} ${v.ini}`; },
-        label: it => { if (it.datasetIndex) return null; const v = lista[it.dataIndex], r = calc(v);
-          return [`Variación: ${pc(r.varReal)}`, `Real: ${f2(r.real)} L/ha  |  Teórico: ${v.tasa ?? '?'} L/ha`, `Área: ${f2(v.area)} ha`]; }
+        label: it => { const v = lista[it.dataIndex], r = calc(v);
+          return [`Variación: ${pc(r.varReal)}`, `Real: ${f2(r.real)} L/ha  |  Teórico: ${v.tasa ?? '?'} L/ha`, `Área: ${f2(v.area)} ha`, r.just ? `Justificación: ${r.just}` : '']; }
       }}},
       scales:{
-        y:{ ticks:{ callback:v => v+'%', color:cs.getPropertyValue('--gris').trim() }, grid:{ color:cs.getPropertyValue('--linea').trim() } },
-        x:{ ticks:{ maxRotation:60, autoSkip:true, color:cs.getPropertyValue('--gris').trim() }, grid:{ display:false } }
+        y:{ ticks:{ callback:v => v+'%', color:c('--gris') }, grid:{ color:c('--linea') } },
+        x:{ ticks:{ maxRotation:70, autoSkip:true, color:c('--gris') }, grid:{ display:false } }
       }
     }
-  };
-  if (grafico) grafico.destroy();
-  grafico = new Chart(document.getElementById('grafVuelos'), cfg);
+  });
 }
 
 function renderTabla(){
   const J = listaJust();
-  const opciones = ['<option value="">—</option>', ...Object.entries(J).map(([n,t]) => `<option value="${esc(n)}">${esc(n)}. ${esc(t)}</option>`)].join('');
+  const opc = sel => ['<option value="">—</option>', ...Object.entries(J).map(([n,t]) => `<option value="${esc(n)}" ${n===sel?'selected':''}>${esc(n)}. ${esc(t)}</option>`)].join('');
   let h = `<thead><tr>
-    <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th>Piloto</th><th>Plantilla (Team Name)</th>
+    <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th>Piloto</th><th>Plantilla</th>
     <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th>
-    <th class="num fijo">Porcentaje de var</th><th class="num fijo">Real aplicado</th><th class="fijo">No. justificación</th><th class="fijo">Justificación</th><th class="num fijo">Var real aplicado</th>
-    <th>Lote</th><th>Supervisor</th><th>Estado</th></tr></thead><tbody>`;
-  visibles().forEach(v => {
-    const r = calc(v), i = S.vuelos.indexOf(v);
-    const est = r.dentro === null ? '<span class="pill m">Sin plantilla</span>'
-      : r.dentro ? '<span class="pill b">Dentro</span>'
-      : v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>';
-    const tasaCell = v.tasaConocida ? f2(v.tasa)
-      : `<input class="tasa" type="number" step="1" data-i="${i}" data-k="tasa" value="${v.tasa ?? ''}" placeholder="?" title="Plantilla no reconocida: escribe L/ha">`;
-    h += `<tr class="${r.dentro===false?'fuera':''} ${v.nJust?'just':''}">
+    <th class="num fijo">Porcentaje de var</th><th class="num fijo">Real aplicado</th><th class="num fijo">Var real aplicado</th>
+    <th class="edit">Justificación</th><th class="edit">Lote</th><th class="edit">Supervisor</th><th>Estado</th></tr></thead><tbody>`;
+  const lista = todos(), vis = visibles();
+  vis.forEach(v => {
+    const r = calc(v), i = lista.indexOf(v);
+    let est = r.dentro === null ? '<span class="pill m">Sin plantilla</span>'
+      : r.dentro ? '<span class="pill b">Dentro</span>' : v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>';
+    if (v.nuevo) est += ' <span class="pill n">Nuevo</span>';
+    h += `<tr class="${r.dentro===false?'fuera':''} ${v.nJust?'just':''} ${v.cambio?'cambio':''}">
       <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${esc(v.piloto)}</td><td>${esc(v.plantilla)}</td>
-      <td class="num">${tasaCell}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
-      <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td>
-      <td><select data-i="${i}" data-k="nJust">${opciones.replace(`value="${esc(v.nJust)}"`, `value="${esc(v.nJust)}" selected`)}</select></td>
-      <td>${esc(r.just)}</td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
-      <td><input class="lote" data-i="${i}" data-k="lote" value="${esc(v.lote)}"></td>
-      <td><input class="sup" list="listaSup" data-i="${i}" data-k="sup" value="${esc(v.sup)}"></td>
+      <td class="num">${v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
+      <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
+      <td><select data-i="${i}" data-k="nJust" aria-label="Justificación">${r.dentro && !v.nJust ? opc('').replace('>—<','>Bueno<') : opc(v.nJust)}</select></td>
+      <td><input class="lote" data-i="${i}" data-k="lote" value="${esc(v.lote)}" aria-label="Lote"></td>
+      <td><input class="sup" list="listaSup" data-i="${i}" data-k="sup" value="${esc(v.sup)}" aria-label="Supervisor"></td>
       <td>${est}</td></tr>`;
   });
   const t = document.getElementById('tablaVuelos');
   t.innerHTML = h + '</tbody>';
-  t.querySelectorAll('[data-k]').forEach(el => {
-    el.addEventListener('change', () => {
-      const v = S.vuelos[+el.dataset.i], k = el.dataset.k;
-      v[k] = k === 'tasa' ? (num(el.value) || null) : el.value.trim();
-      if (k === 'nJust' || k === 'tasa'){ render(); } else { renderResumen(); }
-    });
-  });
+  t.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
+    const v = lista[+el.dataset.i]; v[el.dataset.k] = el.value.trim();
+    if (!v.nuevo) v.cambio = true;
+    if (el.dataset.k === 'nJust') render(); else { el.closest('tr').classList.toggle('cambio', v.cambio); renderResumen(); renderBotonGuardar(); }
+  }));
   document.getElementById('listaSup').innerHTML = listaSup().map(s => `<option value="${esc(s)}">`).join('');
 }
 
-/* ============ Salida: filas en el orden del boceto ============ */
-function filasSalida(){
-  return S.vuelos.map(v => {
-    const r = calc(v);
-    const red = (x,d) => x === null ? '' : +x.toFixed(d);
-    return [
-      v.fecha, v.ini, v.fin, v.dur, v.drone, v.piloto, v.ubic, v.plantilla,
-      v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
-      red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
-      v.lote, v.sup, v.nJust ? Number(v.nJust) || v.nJust : '', v.id, S.nombreArchivo
-    ];
-  });
+/* ======= Filas para BOCETO ======= */
+function fila(v){
+  const r = calc(v), red = (x,d) => x === null || x === undefined ? '' : +x.toFixed(d);
+  return [
+    v.fecha, v.ini, v.fin, v.dur, v.drone, v.piloto, v.ubic, v.plantilla,
+    v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
+    red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
+    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo
+  ];
 }
 
-function faltantes(){
-  const p = [];
-  S.vuelos.forEach(v => { const r = calc(v); if (r.dentro === false && !v.nJust) p.push(v); if (r.dentro === null) p.push(v); });
-  return p.length;
+/* ======= Comunicación con Apps Script ======= */
+async function llamar(accion, cuerpo){
+  if (!S.cfg.url) throw new Error('Falta la URL del Apps Script en Ajustes.');
+  const res = cuerpo
+    ? await fetch(S.cfg.url, { method:'POST', body:JSON.stringify({ accion, ...cuerpo }) })
+    : await fetch(S.cfg.url + (S.cfg.url.includes('?') ? '&' : '?') + 'accion=' + accion);
+  let j; try { j = await res.json(); } catch(e){ throw new Error('El Apps Script no respondió con datos. Revisa que esté implementado como aplicación web con acceso "Cualquier usuario".'); }
+  if (!j.ok) throw new Error(j.error || 'Error en el Apps Script');
+  return j;
 }
 
-/* ============ Eventos ============ */
-function aviso(msg, ms=3500){
-  const d = document.createElement('div'); d.className='toast'; d.textContent = msg; document.body.appendChild(d);
-  setTimeout(() => d.remove(), ms);
+async function actualizar(){
+  const b = document.getElementById('btnActualizar');
+  if (!S.cfg.url){ S.conectado = null; render(); return; }
+  if (S.guardados.some(v => v.cambio) && !confirm('Tienes cambios sin guardar. Si actualizas se pierden. ¿Continuar?')) return;
+  b.disabled = true; b.textContent = 'Actualizando…'; S.conectado = null; renderConexion();
+  try{
+    const j = await llamar('datos');
+    S.guardados = desdeHoja(j.headers || [], j.rows || []);
+    S.conectado = true;
+    const ids = new Set(S.guardados.map(v => v.id));
+    const antes = S.pendientes.length;
+    S.pendientes = S.pendientes.filter(v => !ids.has(v.id));
+    S.repetidos += antes - S.pendientes.length;
+  }catch(e){ console.error(e); S.conectado = false; aviso(e.message, 7000); }
+  b.disabled = false; b.textContent = 'Actualizar';
+  render();
 }
+
+async function guardar(){
+  const est = document.getElementById('estado'), b = document.getElementById('btnGuardar');
+  if (!S.cfg.url){ aviso('Primero pega la URL del Apps Script en Ajustes.'); abrirAjustes(); return; }
+  const filas = porGuardar();
+  const sinJust = filas.filter(v => { const r = calc(v); return r.dentro === false && !v.nJust; }).length;
+  if (sinJust && !confirm(`${sinJust} vuelo(s) fuera de ±${S.cfg.tol}% no tienen justificación. ¿Guardar de todos modos? Puedes justificarlos después.`)) return;
+  b.disabled = true; est.textContent = 'Guardando…';
+  try{
+    let file = null;
+    if (S.pendientes.length && S.archivo){
+      const b64 = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = mal; r.readAsDataURL(S.archivo); });
+      file = { name:S.nombreDrive, mime:S.archivo.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data:b64 };
+    }
+    const j = await llamar('guardar', { file, headers:COLUMNAS, rows:filas.map(fila) });
+    est.innerHTML = `Guardado: ${j.agregados} nuevo(s), ${j.actualizados} actualizado(s).` + (j.archivo ? ` <a href="${esc(j.archivo)}" target="_blank" rel="noopener">Ver Excel en Drive</a>` : '');
+    S.pendientes = []; S.archivo = null; S.repetidos = 0;
+    await actualizar();
+    aviso('Guardado en BOCETO.');
+  }catch(e){ console.error(e); est.textContent = 'No se guardó: ' + e.message; aviso('No se guardó: ' + e.message, 7000); }
+  renderBotonGuardar();
+}
+
+/* ======= Subir Excel ======= */
+function aviso(msg, ms=3500){ const d = document.createElement('div'); d.className='toast'; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), ms); }
 
 async function cargarArchivo(file){
   if (!file) return;
   try{
-    const buf = await file.arrayBuffer();
-    S.vuelos = procesarLibro(buf, file.name);
-    S.archivo = file; S.nombreArchivo = file.name; S.filtro = 'TODOS';
-    const sup1 = listaSup()[0] || '';
-    S.vuelos.forEach(v => v.sup = sup1);
-    document.getElementById('estado').textContent = 'Sin guardar todavía.';
+    const vuelos = leerExcelDJI(await file.arrayBuffer());
+    const fechas = vuelos.map(v => v.fecha).sort(), a = fechas[0], z = fechas[fechas.length-1], ahora = new Date();
+    S.nombreDrive = `VUELOS_DJI_${a}${z!==a?'_a_'+z:''}_subido_${ahora.getFullYear()}${dos(ahora.getMonth()+1)}${dos(ahora.getDate())}_${dos(ahora.getHours())}${dos(ahora.getMinutes())}.xlsx`;
+    vuelos.forEach(v => v.archivo = S.nombreDrive);
+    const ids = new Set(S.guardados.map(v => v.id));
+    S.pendientes = vuelos.filter(v => !ids.has(v.id));
+    S.repetidos = vuelos.length - S.pendientes.length;
+    S.archivo = file;
+    S.fecha = S.pendientes.length ? S.pendientes[0].fecha : 'TODAS'; S.drone = 'TODOS';
+    if (S.pendientes.length && new Set(S.pendientes.map(v=>v.fecha)).size > 1) S.fecha = 'TODAS';
+    document.getElementById('estado').textContent = '';
     render();
-    aviso(`${S.vuelos.length} vuelos cargados de ${file.name}`);
+    aviso(S.pendientes.length ? `${S.pendientes.length} vuelos nuevos listos para guardar.` : 'Todos los vuelos de este Excel ya estaban en BOCETO.', 5000);
   }catch(e){ console.error(e); aviso('No se pudo leer el archivo: ' + e.message, 6000); }
 }
 
-document.getElementById('btnCargar').onclick = () => document.getElementById('archivo').click();
 document.getElementById('archivo').onchange = e => { cargarArchivo(e.target.files[0]); e.target.value=''; };
-const zona = document.getElementById('zonaCarga');
+const zona = document.getElementById('zonaSubir');
 ['dragenter','dragover'].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('sobre'); }));
 ['dragleave','drop'].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('sobre'); }));
 zona.addEventListener('drop', e => cargarArchivo(e.dataTransfer.files[0]));
 
-document.getElementById('btnSupTodos').onclick = () => {
-  const s = document.getElementById('supTodos').value.trim(); if (!s) return;
-  visibles().forEach(v => v.sup = s); renderTabla();
-};
-document.getElementById('btnLoteTodos').onclick = () => {
-  const s = document.getElementById('loteTodos').value.trim(); if (!s) return;
-  visibles().forEach(v => v.lote = s); renderTabla();
-};
-
+document.getElementById('btnActualizar').onclick = actualizar;
+document.getElementById('btnGuardar').onclick = guardar;
+function aplicarTodos(k, val){
+  if (!val) return;
+  visibles().forEach(v => { v[k] = val; if (!v.nuevo) v.cambio = true; });
+  render();
+}
+document.getElementById('btnSupTodos').onclick = () => aplicarTodos('sup', document.getElementById('supTodos').value.trim());
+document.getElementById('btnLoteTodos').onclick = () => aplicarTodos('lote', document.getElementById('loteTodos').value.trim());
 document.getElementById('btnDescargar').onclick = () => {
-  const ws = XLSX.utils.aoa_to_sheet([COLUMNAS, ...filasSalida()]);
+  const ws = XLSX.utils.aoa_to_sheet([COLUMNAS, ...visibles().map(fila)]);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'VUELOS');
-  XLSX.writeFile(wb, 'VUELOS_PROCESADO_' + S.nombreArchivo.replace(/\.[^.]+$/,'') + '.xlsx');
+  XLSX.writeFile(wb, `VUELOS_${S.fecha==='TODAS'?'todas':S.fecha}.xlsx`);
 };
 
-document.getElementById('btnGuardar').onclick = async () => {
-  const est = document.getElementById('estado');
-  if (!S.cfg.url){ aviso('Primero pega la URL del Apps Script en Ajustes.'); abrirAjustes(); return; }
-  const f = faltantes();
-  if (f && !confirm(`Hay ${f} vuelo(s) fuera de tolerancia sin justificar o sin plantilla. ¿Guardar de todos modos?`)) return;
-  const btn = document.getElementById('btnGuardar'); btn.disabled = true; est.textContent = 'Guardando…';
-  try{
-    const b64 = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = mal; r.readAsDataURL(S.archivo); });
-    const cuerpo = JSON.stringify({
-      file:{ name:S.nombreArchivo, mime:S.archivo.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data:b64 },
-      headers:COLUMNAS, rows:filasSalida()
-    });
-    const res = await fetch(S.cfg.url, { method:'POST', body:cuerpo }); // text/plain: sin preflight
-    const j = await res.json();
-    if (!j.ok) throw new Error(j.error || 'Respuesta inválida');
-    est.innerHTML = `Guardado: ${j.agregados} nuevo(s), ${j.actualizados} actualizado(s).` + (j.archivo ? ` <a href="${esc(j.archivo)}" target="_blank" rel="noopener">Ver Excel en Drive</a>` : '');
-    aviso('Guardado en Drive y en la hoja.');
-  }catch(e){ console.error(e); est.textContent = 'No se guardó: ' + e.message; aviso('No se guardó: ' + e.message, 6000); }
-  btn.disabled = false;
-};
-
-/* Ajustes */
+/* ======= Ajustes ======= */
 const dlg = document.getElementById('dlgAjustes');
 function abrirAjustes(){
+  document.getElementById('cfgUrl').value = S.cfg.url;
   document.getElementById('cfgPlantillas').value = S.cfg.plantillas;
   document.getElementById('cfgJust').value = S.cfg.just;
   document.getElementById('cfgSup').value = S.cfg.sup;
   document.getElementById('cfgTol').value = S.cfg.tol;
-  document.getElementById('cfgUrl').value = S.cfg.url;
+  document.getElementById('probarTxt').textContent = '';
   dlg.showModal();
 }
 document.getElementById('btnAjustes').onclick = abrirAjustes;
 document.getElementById('btnCerrarAj').onclick = () => dlg.close();
+document.getElementById('btnProbar').onclick = async () => {
+  const t = document.getElementById('probarTxt'), antes = S.cfg.url;
+  S.cfg.url = document.getElementById('cfgUrl').value.trim(); t.textContent = 'Probando…';
+  try { const j = await llamar('ping'); t.textContent = `✓ Conectado a "${j.hoja}", pestaña ${j.pestana}`; }
+  catch(e){ t.textContent = '✗ ' + e.message; }
+  S.cfg.url = antes;
+};
 document.getElementById('btnGuardarAj').onclick = () => {
+  const urlAntes = S.cfg.url;
+  S.cfg.url = document.getElementById('cfgUrl').value.trim();
   S.cfg.plantillas = document.getElementById('cfgPlantillas').value;
   S.cfg.just = document.getElementById('cfgJust').value;
   S.cfg.sup = document.getElementById('cfgSup').value;
   S.cfg.tol = num(document.getElementById('cfgTol').value) ?? DEF_TOL;
-  S.cfg.url = document.getElementById('cfgUrl').value.trim();
   guardarCfg();
   const m = mapaPlantillas();
-  S.vuelos.forEach(v => { const t = m[norm(v.plantilla)]; if (t !== undefined){ v.tasa = t; v.tasaConocida = true; } });
-  dlg.close(); render(); aviso('Ajustes guardados.');
+  todos().forEach(v => { const t = m[norm(v.plantilla)]; if (t !== undefined && v.tasa !== t){ v.tasa = t; if (!v.nuevo) v.cambio = true; } });
+  dlg.close();
+  if (S.cfg.url !== urlAntes) actualizar(); else render();
+  aviso('Ajustes guardados.');
 };
 
+/* ======= Inicio: traer los datos ya subidos ======= */
 S.cfg = leerCfg();
 render();
+actualizar();
 </script>
 </body>
 </html>
