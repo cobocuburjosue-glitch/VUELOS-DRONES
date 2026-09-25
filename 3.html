@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vuelos de drones · Malezas y Madurantes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --verde-fijo:#2f5d34;
+  --caña:#2f5d34; --caña-2:#3f7a45; --tallo:#d9b44a;
+  --papel:#f6f7f2; --tinta:#1d2419; --gris:#6c7466; --linea:#dfe3d7; --panel:#ffffff;
+  --bien:#2f7d3e; --alerta:#c0392b; --aviso:#b7791f; --azul:#1f5fa8;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papel:#141a13;--panel:#1c241b;--tinta:#e8ecdf;--gris:#9aa393;--linea:#2e392c;
+    --caña:#5e9e60;--caña-2:#3f7a45;--bien:#5fbf6e;--alerta:#e5645a;--aviso:#e0a33c;--azul:#6aa5ec;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--papel);color:var(--tinta);font:15px/1.5 "Barlow",system-ui,sans-serif}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0;letter-spacing:.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1400px;margin:0 auto;padding:0 20px}
+.oculto{display:none!important}
+body.lector .solo-admin{display:none!important}
+
+header.top{background:var(--verde-fijo);color:#fff}
+header.top::after{content:"";display:block;height:8px;background:repeating-linear-gradient(90deg,var(--tallo) 0 18px,transparent 18px 26px)}
+.top .wrap{display:flex;align-items:center;gap:16px;padding-top:18px;padding-bottom:16px;flex-wrap:wrap}
+.top h1{font-size:30px;font-weight:700;line-height:1.1}
+.top p{margin:2px 0 0;opacity:.85;font-size:14px}
+.top .acciones{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.top .quien{font-size:14px;opacity:.9;margin-right:4px}
+
+.btn{border-radius:6px;padding:9px 14px;font-weight:600;cursor:pointer;background:var(--panel);color:var(--tinta);border:1px solid var(--linea)}
+.btn:hover{border-color:var(--caña)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.seg button:focus-visible{outline:3px solid var(--tallo);outline-offset:1px}
+.btn.prim{background:var(--tallo);color:#2a2106;border-color:var(--tallo)}
+.btn.verde{background:var(--caña-2);color:#fff;border-color:var(--caña-2)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.chico{padding:5px 10px;font-size:13px}
+.top .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+.top .btn.prim{background:var(--tallo);color:#2a2106;border-color:var(--tallo)}
+
+/* Inicio de sesión */
+#login{min-height:100vh;display:grid;place-items:center;padding:20px;
+  background:linear-gradient(180deg,var(--verde-fijo) 0 34%,var(--papel) 34%)}
+.login-caja{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--linea);border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.18)}
+.login-caja header{background:var(--verde-fijo);color:#fff;padding:22px 24px 18px}
+.login-caja header::after{content:"";display:block;height:6px;margin:16px -24px -18px;background:repeating-linear-gradient(90deg,var(--tallo) 0 14px,transparent 14px 20px)}
+.login-caja h1{font-size:30px}
+.login-caja header p{margin:2px 0 0;opacity:.85;font-size:14px}
+.login-caja form{padding:22px 24px 24px;display:grid;gap:14px}
+.login-caja label{font-weight:600;display:block;margin-bottom:4px}
+.login-caja input[type=text],.login-caja input[type=password]{width:100%;border:1px solid var(--linea);border-radius:6px;padding:10px;background:var(--papel)}
+.login-caja .recordar{display:flex;gap:8px;align-items:center;font-weight:400;margin:0}
+.login-caja .error{color:var(--alerta);font-size:14px;min-height:1.2em;margin:0}
+
+.conexion{display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:14px;color:var(--gris);flex-wrap:wrap}
+.conexion .punto{width:10px;height:10px;border-radius:50%;background:var(--gris);flex:none}
+.conexion.ok .punto{background:var(--bien)}
+.conexion.mal .punto{background:var(--alerta)} .conexion.mal{color:var(--alerta)}
+
+.subir{margin:16px 0;background:var(--panel);border:2px dashed var(--linea);border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.subir.sobre{border-color:var(--tallo)}
+.subir .txt{flex:1;min-width:240px}
+.subir h2{font-size:22px}
+.subir p{margin:2px 0 0;color:var(--gris);font-size:14px}
+.subir.pendiente{border-style:solid;border-color:var(--tallo);background:color-mix(in srgb,var(--tallo) 8%,var(--panel))}
+.subir.pendiente p{color:var(--tinta)}
+
+/* Filtros */
+.filtros{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;margin:18px 0}
+.filtros .fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px}
+.filtros label{font-size:12.5px;color:var(--gris);display:block;margin-bottom:2px;font-weight:600}
+.filtros select,.filtros input{width:100%;border:1px solid var(--linea);border-radius:6px;padding:6px 8px;background:var(--papel)}
+.filtros .drones{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--linea)}
+.filtros .drones .et{font-size:12.5px;color:var(--gris);font-weight:600;margin-right:4px}
+.filtros .drones .limpiar{margin-left:auto}
+.chip{border:1px solid var(--linea);background:var(--papel);border-radius:999px;padding:4px 13px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.chip .col{width:9px;height:9px;border-radius:50%}
+.chip[aria-pressed="true"]{background:var(--caña-2);border-color:var(--caña-2);color:#fff}
+
+.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:10px;overflow:hidden;margin:0 0 18px}
+.dato{background:var(--panel);padding:14px 16px}
+.dato b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:30px;font-weight:600;line-height:1.1}
+.dato span{color:var(--gris);font-size:13px}
+.dato.alerta b{color:var(--alerta)}
+
+.agrupar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.agrupar h2{font-size:24px;margin-right:auto}
+.seg{display:inline-flex;border:1px solid var(--linea);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:6px 12px;font-weight:600;cursor:pointer;border-right:1px solid var(--linea)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--caña-2);color:#fff}
+
+.rejilla{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:18px}
+@media (max-width:900px){.rejilla{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:16px;min-width:0}
+.panel h3{font-size:20px;margin-bottom:2px}
+.nota{color:var(--gris);font-size:13px;margin:0 0 8px}
+.graf{position:relative;height:290px}
+.graf-scroll{overflow-x:auto}
+.graf.ancho{height:320px;min-width:100%}
+
+.tabla-scroll{overflow:auto;max-height:70vh;border:1px solid var(--linea);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--linea);white-space:nowrap;text-align:left}
+th{background:var(--caña-2);color:#fff;font-weight:600;position:sticky;top:0;z-index:1}
+th.fijo{background:var(--verde-fijo)}
+body:not(.lector) th.edit{background:#8a6d1c}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.fuera td{background:color-mix(in srgb,var(--alerta) 7%,transparent)}
+tr.fuera.just td{background:color-mix(in srgb,var(--aviso) 8%,transparent)}
+tr.cambio td:first-child{box-shadow:inset 4px 0 0 var(--tallo)}
+.pos{color:var(--alerta);font-weight:600}.neg{color:var(--azul);font-weight:600}.ok{color:var(--bien);font-weight:600}
+td input,td select{border:1px solid var(--linea);border-radius:5px;padding:4px 6px;background:var(--papel);min-width:0}
+td input.lote{width:80px} td input.sup{width:170px} td select{max-width:230px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.pill.b{background:color-mix(in srgb,var(--bien) 15%,transparent);color:var(--bien)}
+.pill.m{background:color-mix(in srgb,var(--alerta) 15%,transparent);color:var(--alerta)}
+.pill.j{background:color-mix(in srgb,var(--aviso) 18%,transparent);color:var(--aviso)}
+.pill.n{background:color-mix(in srgb,var(--tallo) 25%,transparent);color:var(--tinta)}
+
+.barra-guardar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 40px;padding:10px 14px;background:var(--panel);border:1px solid var(--linea);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.barra-guardar .estado{color:var(--gris)}
+.barra-guardar .estado a{color:var(--caña)}
+.masivo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.masivo input{border:1px solid var(--linea);border-radius:6px;padding:7px 9px;background:var(--panel)}
+.vacio{text-align:center;padding:50px 20px;color:var(--gris);margin-top:18px}
+.pie{height:40px}
+
+dialog{border:0;border-radius:12px;padding:0;max-width:760px;width:calc(100% - 24px);background:var(--panel);color:var(--tinta)}
+dialog::backdrop{background:rgba(10,20,10,.5)}
+.dlg-cab{background:var(--verde-fijo);color:#fff;padding:14px 18px}
+.dlg-cab h2{font-size:22px}
+.dlg-cuerpo{padding:18px;display:grid;gap:18px;max-height:70vh;overflow:auto}
+.dlg-cuerpo label{font-weight:600;display:block;margin-bottom:4px}
+.dlg-cuerpo textarea,.dlg-cuerpo input{width:100%;border:1px solid var(--linea);border-radius:6px;padding:8px;background:var(--papel)}
+.dlg-cuerpo textarea{min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.dlg-pie{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--linea)}
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 16px;border-radius:8px;z-index:50;max-width:90vw}
+@media (prefers-reduced-motion:no-preference){.toast{animation:sube .25s ease-out}@keyframes sube{from{opacity:0;transform:translate(-50%,8px)}}}
+</style>
+</head>
+<body>
+
+<!-- ============ Inicio de sesión ============ -->
+<section id="login">
+  <div class="login-caja">
+    <header>
+      <h1>Vuelos de drones</h1>
+      <p>Malezas y Madurantes · Ingenio Madre Tierra</p>
+    </header>
+    <form id="formLogin" autocomplete="on">
+      <div><label for="usuario">Usuario</label><input type="text" id="usuario" autocomplete="username" autocapitalize="characters" required></div>
+      <div><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password" required></div>
+      <label class="recordar"><input type="checkbox" id="recordar"> Mantener la sesión en este equipo</label>
+      <p class="error" id="loginError" role="alert"></p>
+      <button class="btn verde" type="submit" id="btnEntrar">Entrar</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ Aplicación ============ -->
+<div id="app" class="oculto">
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Vuelos de drones</h1>
+      <p>Variación real vs. litros teóricos por hectárea · Malezas y Madurantes</p>
+    </div>
+    <div class="acciones">
+      <span class="quien" id="quien"></span>
+      <button class="btn prim solo-admin" id="btnActualizar" type="button">Actualizar</button>
+      <button class="btn solo-admin" id="btnAjustes" type="button">Ajustes</button>
+      <button class="btn" id="btnSalir" type="button">Cerrar sesión</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="conexion solo-admin" id="conexion"><span class="punto"></span><span id="conexionTxt">Conectando…</span></div>
+
+  <section class="subir solo-admin" id="zonaSubir">
+    <div class="txt" id="subirTxt"></div>
+    <div id="subirAcciones" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    <input type="file" id="archivo" accept=".xlsx,.xls,.csv" hidden>
+  </section>
+
+  <div id="vacio" class="vacio panel">Cargando vuelos…</div>
+
+  <div id="tablero" class="oculto">
+    <!-- Filtros -->
+    <section class="filtros" aria-label="Filtros">
+      <div class="fila">
+        <div><label for="fDesde">Desde</label><input type="date" id="fDesde"></div>
+        <div><label for="fHasta">Hasta</label><input type="date" id="fHasta"></div>
+        <div><label for="fPlantilla">Plantilla</label><select id="fPlantilla"></select></div>
+        <div><label for="fPiloto">Piloto</label><select id="fPiloto"></select></div>
+        <div><label for="fSup">Supervisor</label><select id="fSup"></select></div>
+        <div><label for="fLote">Lote</label><select id="fLote"></select></div>
+        <div><label for="fEstado">Estado</label><select id="fEstado"></select></div>
+        <div><label for="fObs">Observación</label><select id="fObs"></select></div>
+      </div>
+      <div class="drones" id="fDrones"></div>
+    </section>
+
+    <div class="resumen" id="resumen"></div>
+
+    <div class="agrupar">
+      <h2>Gráficas</h2>
+      <span class="nota" style="margin:0">Agrupar por</span>
+      <div class="seg" id="segGrupo" role="group" aria-label="Agrupar gráficas por"></div>
+    </div>
+
+    <div class="rejilla">
+      <section class="panel"><h3>Litros aplicados</h3><p class="nota">Barras = litros reales por drone. Raya = litros teóricos.</p><div class="graf"><canvas id="gLitros"></canvas></div></section>
+      <section class="panel"><h3>Hectáreas aplicadas</h3><p class="nota">Por drone.</p><div class="graf"><canvas id="gHa"></canvas></div></section>
+      <section class="panel"><h3>Variación real</h3><p class="nota" id="notaVar"></p><div class="graf"><canvas id="gVar"></canvas></div></section>
+      <section class="panel"><h3>Observaciones</h3><p class="nota">Cantidad de vuelos por observación.</p><div class="graf"><canvas id="gObs"></canvas></div></section>
+      <section class="panel"><h3>Observaciones por drone</h3><p class="nota">Toca una observación en la leyenda para ocultarla.</p><div class="graf"><canvas id="gObsDrone"></canvas></div></section>
+      <section class="panel"><h3>Resumen por drone</h3><p class="nota">Con los filtros aplicados.</p><div style="overflow-x:auto"><table id="tablaDrones"></table></div></section>
+    </div>
+
+    <section class="panel" style="margin-bottom:18px">
+      <h3>Variación por vuelo</h3>
+      <p class="nota" id="notaGraf"></p>
+      <div class="graf-scroll"><div class="graf ancho" id="grafCaja"><canvas id="gVuelos"></canvas></div></div>
+    </section>
+
+    <h2 style="font-size:24px;margin:26px 0 4px">Detalle de vuelos</h2>
+    <p class="nota solo-admin">Solo se editan las columnas en dorado: <b>Justificación</b>, <b>Lote</b> y <b>Supervisor</b>. Las filas que cambies se marcan a la izquierda hasta que guardes.</p>
+    <div class="masivo solo-admin">
+      <input id="supTodos" list="listaSup" placeholder="Supervisor para todos">
+      <button class="btn" type="button" id="btnSupTodos">Aplicar a los vuelos filtrados</button>
+      <input id="loteTodos" placeholder="Lote para todos" style="width:150px">
+      <button class="btn" type="button" id="btnLoteTodos">Aplicar lote</button>
+    </div>
+    <div class="tabla-scroll"><table id="tablaVuelos"></table></div>
+
+    <div class="barra-guardar solo-admin">
+      <button class="btn verde" type="button" id="btnGuardar" disabled>Guardar</button>
+      <button class="btn" type="button" id="btnDescargar">Descargar Excel</button>
+      <span class="estado" id="estado"></span>
+    </div>
+    <div class="pie"></div>
+  </div>
+</main>
+</div>
+
+<datalist id="listaSup"></datalist>
+
+<dialog id="dlgAjustes">
+  <div class="dlg-cab"><h2>Ajustes</h2></div>
+  <div class="dlg-cuerpo">
+    <p class="nota" style="margin:0">Estos ajustes se guardan en BOCETO y aplican para todos los que abren el dashboard.</p>
+    <div>
+      <label for="cfgPlantillas">Plantillas (Team Name) y litros por hectárea</label>
+      <textarea id="cfgPlantillas"></textarea>
+      <p class="nota">Una por línea: <code>nombre = litros</code>. Mayúsculas, tildes y espacios no importan.</p>
+    </div>
+    <div>
+      <label for="cfgJust">Justificaciones</label>
+      <textarea id="cfgJust"></textarea>
+      <p class="nota">Una por línea: <code>número = texto</code>.</p>
+    </div>
+    <div><label for="cfgSup">Supervisores</label><textarea id="cfgSup" style="min-height:90px"></textarea></div>
+    <div><label for="cfgTol">Tolerancia de variación (%)</label><input id="cfgTol" type="number" step="0.5" min="0" style="width:120px"></div>
+  </div>
+  <div class="dlg-pie">
+    <button class="btn" type="button" id="btnCerrarAj">Cancelar</button>
+    <button class="btn verde" type="button" id="btnGuardarAj">Guardar ajustes</button>
+  </div>
+</dialog>
+
+<script>
+const URL_SCRIPT = 'https://script.google.com/macros/s/AKfycbydAY3GHQCW5KFTD68dErXDlwUdR403gwSJMeEtSbFRyW1BKjeIFl6vVe6QUygy2IufyA/exec';
+
+const DEF = {
+  plantillas:`MT madurante 25 26 = 14
+Pre y bio = 10
+Pre 25 = 20
+MADURANTE 14 LTS = 14
+MADURANTES 20 LTS = 20
+MADURANTE 25 LTS = 25
+MADURANTES 30 LTS = 30
+PREMADURANTE 26-27 = 20
+BIOESTIMULANTE 26-27 = 14`,
+  just:`1 = TRAMO CORTO`, sup:`Ing. Manuel Corado`, tol:5
+};
+
+const COLUMNAS = [
+  'FECHA','HORA INICIO','HORA FIN','DURACION','DRONE','PILOTO','UBICACION','PLANTILLA',
+  'LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES',
+  'LTS DIF','PORCENTAJE DE VAR','REAL APLICADO','JUSTIFICACION','VAR REAL APLICADO',
+  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO'
+];
+const COLORES_DRONE = ['#e0a33c','#5fa8e0','#7cc47f','#d86a9a','#a58be0','#e07a4a','#4ec1b5','#c9c95a','#9aa7b8','#ef8f8f'];
+
+/* ============ Estado ============ */
+const S = {
+  ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
+  cfg:{...DEF}, conectado:null, grupo:'dia',
+  F:{ desde:'', hasta:'', plantilla:'', piloto:'', sup:'', lote:'', estado:'', obs:'', drones:new Set() }
+};
+const G = {};   // gráficas
+const esAdmin = () => S.ses && S.ses.rol === 'admin';
+
+/* ============ Utilidades ============ */
+const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function num(v){ if (typeof v === 'number') return v; const x = parseFloat(String(v ?? '').replace('%','').replace(',','.')); return isNaN(x) ? null : x; }
+const dos = n => String(n).padStart(2,'0');
+const f2 = n => n === null || n === undefined || isNaN(n) ? '–' : n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pc = n => n === null || n === undefined || isNaN(n) ? '–' : (n*100).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clase = x => x === null ? '' : (x > 0 ? 'pos' : 'neg');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function aviso(msg, ms=3500){ const d = document.createElement('div'); d.className='toast'; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), ms); }
+
+function mapaPlantillas(){
+  const m = {};
+  String(S.cfg.plantillas||'').split('\n').forEach(l => { const i = l.lastIndexOf('='); if (i < 0) return;
+    const k = norm(l.slice(0,i)), v = parseFloat(l.slice(i+1).replace(',','.')); if (k && !isNaN(v)) m[k] = v; });
+  return m;
+}
+function listaJust(){
+  const m = {};
+  String(S.cfg.just||'').split('\n').forEach(l => { const i = l.indexOf('='); if (i < 0) return;
+    const n = l.slice(0,i).trim(), t = l.slice(i+1).trim(); if (n && t) m[n] = t; });
+  return m;
+}
+const listaSup = () => String(S.cfg.sup||'').split('\n').map(s=>s.trim()).filter(Boolean);
+
+/* ============ Sesión ============ */
+function leerSesion(){
+  try { return JSON.parse(localStorage.getItem('vuelosSesion') || sessionStorage.getItem('vuelosSesion') || 'null'); } catch(e){ return null; }
+}
+function guardarSesion(ses, recordar){
+  try { (recordar ? localStorage : sessionStorage).setItem('vuelosSesion', JSON.stringify(ses)); } catch(e){}
+}
+function cerrarSesion(msg){
+  try { localStorage.removeItem('vuelosSesion'); sessionStorage.removeItem('vuelosSesion'); } catch(e){}
+  S.ses = null; S.guardados = []; S.pendientes = [];
+  document.getElementById('app').classList.add('oculto');
+  document.getElementById('login').classList.remove('oculto');
+  document.getElementById('clave').value = '';
+  document.getElementById('loginError').textContent = msg || '';
+}
+function entrarApp(){
+  document.body.classList.toggle('lector', !esAdmin());
+  document.getElementById('quien').textContent = esAdmin() ? `${S.ses.nombre} · administrador` : S.ses.nombre;
+  document.getElementById('login').classList.add('oculto');
+  document.getElementById('app').classList.remove('oculto');
+  render(); actualizar(true);
+}
+document.getElementById('formLogin').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = document.getElementById('btnEntrar'), err = document.getElementById('loginError');
+  b.disabled = true; b.textContent = 'Entrando…'; err.textContent = '';
+  try{
+    const recordar = document.getElementById('recordar').checked;
+    const j = await llamar('login', { usuario:document.getElementById('usuario').value, clave:document.getElementById('clave').value, recordar }, false);
+    S.ses = { token:j.token, rol:j.rol, nombre:j.nombre };
+    guardarSesion(S.ses, recordar);
+    entrarApp();
+  }catch(ex){ err.textContent = ex.message; }
+  b.disabled = false; b.textContent = 'Entrar';
+});
+document.getElementById('btnSalir').onclick = () => {
+  if (porGuardar().length && !confirm('Tienes cambios sin guardar. ¿Cerrar sesión de todos modos?')) return;
+  cerrarSesion();
+};
+
+/* ============ Comunicación ============ */
+async function llamar(accion, cuerpo, conToken = true){
+  let res;
+  try{
+    if (cuerpo) res = await fetch(URL_SCRIPT, { method:'POST', body:JSON.stringify({ accion, ...(conToken ? { token:S.ses?.token } : {}), ...cuerpo }) });
+    else res = await fetch(`${URL_SCRIPT}?accion=${accion}&token=${encodeURIComponent(S.ses?.token || '')}`);
+  }catch(e){ throw new Error('No hay conexión con BOCETO. Revisa tu internet.'); }
+  let j; try { j = await res.json(); } catch(e){ throw new Error('El Apps Script no respondió. Revisa la implementación.'); }
+  if (!j.ok){
+    const m = String(j.error || 'Error en el Apps Script');
+    if (m.startsWith('SESION:')){ cerrarSesion(m.replace('SESION:','').trim()); throw new Error(m.replace('SESION:','').trim()); }
+    throw new Error(m);
+  }
+  return j;
+}
+
+/* ============ Leer Excel DJI ============ */
+const CAMPOS = { tiempo:['flighttime'], ubic:['location'], drone:['aircraftname'], area:['sprayedarea'], litros:['totalamount'],
+  dur:['flightduration'], piloto:['pilotname'], plantilla:['teamname'], serie:['serialnumber'] };
+function hallarCol(cab, claves){ const n = cab.map(c => norm(c).toLowerCase());
+  for (const k of claves){ const i = n.findIndex(c => c.startsWith(k)); if (i >= 0) return i; } return -1; }
+function partirTiempo(v){
+  if (v instanceof Date) return { fecha:`${v.getFullYear()}-${dos(v.getMonth()+1)}-${dos(v.getDate())}`, ini:`${dos(v.getHours())}:${dos(v.getMinutes())}:${dos(v.getSeconds())}`, fin:'' };
+  const s = String(v ?? '').trim();
+  const m = s.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:~\s*(\d{1,2}:\d{2}(?::\d{2})?))?/);
+  return m ? { fecha:m[1], ini:m[2], fin:m[3] || '' } : { fecha:s, ini:'', fin:'' };
+}
+function leerExcelDJI(buf){
+  const wb = XLSX.read(buf, { type:'array', cellDates:true });
+  const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, raw:true, defval:'' });
+  const iCab = filas.findIndex((f,i) => i < 15 && f.some(c => norm(c) === 'SPRAYEDAREA'));
+  if (iCab < 0) throw new Error('No encontré la columna "Sprayed area". ¿Es el Excel que baja la plataforma DJI?');
+  const col = {}; for (const k in CAMPOS) col[k] = hallarCol(filas[iCab], CAMPOS[k]);
+  for (const k of ['area','litros','plantilla','drone']) if (col[k] < 0) throw new Error(`Falta la columna ${k} en el Excel.`);
+  const plant = mapaPlantillas(), sup1 = listaSup()[0] || '', out = [];
+  filas.slice(iCab+1).forEach((f, idx) => {
+    const area = num(f[col.area]), litros = num(f[col.litros]);
+    if (!area || area <= 0 || litros === null) return;
+    const t = partirTiempo(col.tiempo >= 0 ? f[col.tiempo] : '');
+    const plantilla = String(f[col.plantilla] ?? '').trim(), drone = String(f[col.drone] ?? '').trim() || 'Sin nombre';
+    const serie = col.serie >= 0 ? String(f[col.serie]).trim() : '';
+    out.push({ id: serie || `${drone}_${t.fecha}_${t.ini}_${idx}`, fecha:t.fecha, ini:t.ini, fin:t.fin, dur: col.dur >= 0 ? String(f[col.dur]) : '',
+      drone, piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '', ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
+      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:sup1, archivo:'', nuevo:true, cambio:false });
+  });
+  if (!out.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
+  return out;
+}
+
+/* ============ Datos de BOCETO ============ */
+function desdeHoja(headers, rows){
+  const ix = {}; headers.forEach((h,i) => ix[norm(h)] = i);
+  const g = (r,h) => { const i = ix[norm(h)]; return i === undefined ? '' : r[i]; };
+  const plant = mapaPlantillas();
+  return rows.filter(r => String(g(r,'ID VUELO')).trim()).map(r => {
+    const plantilla = String(g(r,'PLANTILLA')).trim();
+    return { id:String(g(r,'ID VUELO')).trim(), fecha:String(g(r,'FECHA')), ini:String(g(r,'HORA INICIO')), fin:String(g(r,'HORA FIN')),
+      dur:String(g(r,'DURACION')), drone:String(g(r,'DRONE')).trim(), piloto:String(g(r,'PILOTO')).trim(), ubic:String(g(r,'UBICACION')),
+      plantilla, tasa: num(g(r,'LTS/HA TEORICO')) ?? plant[norm(plantilla)] ?? null,
+      area:num(g(r,'AREA (HA)')) || 0, litros:num(g(r,'LTS REALES')) || 0,
+      nJust:String(g(r,'OBSERVACION') ?? '').trim(), justTxt:String(g(r,'JUSTIFICACION') ?? '').trim(),
+      lote:String(g(r,'LOTE') ?? '').trim(), sup:String(g(r,'SUPERVISOR') ?? '').trim(),
+      archivo:String(g(r,'ARCHIVO')), nuevo:false, cambio:false };
+  }).filter(v => v.area > 0);
+}
+
+/* ============ Cálculos ============ */
+function calc(v){
+  const r = { real: v.area ? v.litros / v.area : null, ltsTeo:null, dif:null, pctVar:null, varReal:null, dentro:null };
+  if (v.tasa){
+    r.ltsTeo = v.area * v.tasa; r.dif = v.litros - r.ltsTeo;
+    r.pctVar = v.litros ? r.dif / v.litros : null;
+    r.varReal = (r.real - v.tasa) / v.tasa;
+    r.dentro = Math.abs(r.varReal) * 100 <= S.cfg.tol;
+  }
+  const J = listaJust();
+  r.just = v.nJust ? (J[v.nJust] || (v.justTxt && v.justTxt !== 'Bueno' ? v.justTxt : `Justificación ${v.nJust}`)) : (r.dentro ? 'Bueno' : '');
+  r.obs = r.dentro === null ? 'Sin plantilla' : v.nJust ? r.just : r.dentro ? 'Bueno' : 'Sin justificar';
+  r.estado = r.dentro === null ? 'Sin plantilla' : r.dentro ? 'Dentro de tolerancia' : v.nJust ? 'Fuera, justificado' : 'Fuera, sin justificar';
+  return r;
+}
+
+/* ============ Filtros ============ */
+const todos = () => [...S.guardados, ...S.pendientes].sort((a,b) => (a.fecha+a.ini).localeCompare(b.fecha+b.ini));
+const valLote = v => v.lote || 'Sin lote', valSup = v => v.sup || 'Sin supervisor', valPil = v => v.piloto || 'Sin piloto';
+function pasa(v, sinDrone){
+  const F = S.F, r = calc(v);
+  if (F.desde && v.fecha < F.desde) return false;
+  if (F.hasta && v.fecha > F.hasta) return false;
+  if (F.plantilla && v.plantilla !== F.plantilla) return false;
+  if (F.piloto && valPil(v) !== F.piloto) return false;
+  if (F.sup && valSup(v) !== F.sup) return false;
+  if (F.lote && valLote(v) !== F.lote) return false;
+  if (F.estado && r.estado !== F.estado) return false;
+  if (F.obs && r.obs !== F.obs) return false;
+  if (!sinDrone && F.drones.size && !F.drones.has(v.drone)) return false;
+  return true;
+}
+const visibles = () => todos().filter(v => pasa(v));
+const porGuardar = () => [...S.pendientes, ...S.guardados.filter(v => v.cambio)];
+const listaDrones = () => [...new Set(todos().map(v => v.drone))].sort();
+const colorDrone = d => COLORES_DRONE[listaDrones().indexOf(d) % COLORES_DRONE.length];
+
+function llenarSelect(id, valores, actual, todosTxt){
+  const el = document.getElementById(id);
+  const vals = [...new Set(valores)].filter(x => x !== '').sort((a,b) => String(a).localeCompare(String(b), 'es', {numeric:true}));
+  el.innerHTML = `<option value="">${todosTxt}</option>` + vals.map(x => `<option ${x===actual?'selected':''}>${esc(x)}</option>`).join('');
+}
+function renderFiltros(){
+  const T = todos(), F = S.F;
+  llenarSelect('fPlantilla', T.map(v => v.plantilla), F.plantilla, 'Todas');
+  llenarSelect('fPiloto', T.map(valPil), F.piloto, 'Todos');
+  llenarSelect('fSup', T.map(valSup), F.sup, 'Todos');
+  llenarSelect('fLote', T.map(valLote), F.lote, 'Todos');
+  llenarSelect('fEstado', ['Dentro de tolerancia','Fuera, justificado','Fuera, sin justificar','Sin plantilla'].filter(e => T.some(v => calc(v).estado === e)), F.estado, 'Todos');
+  llenarSelect('fObs', T.map(v => calc(v).obs), F.obs, 'Todas');
+  const fechas = T.map(v => v.fecha).filter(Boolean).sort();
+  ['fDesde','fHasta'].forEach(id => { const el = document.getElementById(id); el.min = fechas[0] || ''; el.max = fechas[fechas.length-1] || ''; });
+  document.getElementById('fDesde').value = F.desde; document.getElementById('fHasta').value = F.hasta;
+
+  const drones = listaDrones(), cont = document.getElementById('fDrones');
+  cont.innerHTML = `<span class="et">Drones</span><button class="chip" type="button" aria-pressed="${F.drones.size===0}" data-d="">Todos</button>`
+    + drones.map(d => `<button class="chip" type="button" aria-pressed="${F.drones.has(d)}" data-d="${esc(d)}"><span class="col" style="background:${colorDrone(d)}"></span>${esc(d)}</button>`).join('')
+    + `<button class="btn chico limpiar" type="button" id="btnLimpiar">Limpiar filtros</button>`;
+  cont.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const d = b.dataset.d;
+    if (!d) F.drones.clear(); else F.drones.has(d) ? F.drones.delete(d) : F.drones.add(d);
+    render();
+  });
+  document.getElementById('btnLimpiar').onclick = () => {
+    Object.assign(F, { desde:'', hasta:'', plantilla:'', piloto:'', sup:'', lote:'', estado:'', obs:'' }); F.drones.clear(); render();
+  };
+}
+[['fDesde','desde'],['fHasta','hasta'],['fPlantilla','plantilla'],['fPiloto','piloto'],['fSup','sup'],['fLote','lote'],['fEstado','estado'],['fObs','obs']]
+  .forEach(([id,k]) => document.getElementById(id).addEventListener('change', e => { S.F[k] = e.target.value; render(); }));
+
+/* ============ Render ============ */
+function render(){
+  if (!S.ses) return;
+  const hay = todos().length > 0;
+  const vac = document.getElementById('vacio');
+  vac.classList.toggle('oculto', hay);
+  if (!hay) vac.innerHTML = S.conectado === null ? 'Cargando vuelos…' : (esAdmin() ? 'Todavía no hay vuelos. Sube un Excel de DJI para empezar.' : 'Todavía no hay vuelos registrados.');
+  document.getElementById('tablero').classList.toggle('oculto', !hay);
+  if (esAdmin()){ renderSubir(); renderConexion(); renderBotonGuardar(); }
+  if (!hay) return;
+  renderFiltros(); renderResumen(); renderGrupo(); renderGraficas(); renderDrones(); renderVuelos(); renderTabla();
+}
+
+function renderConexion(){
+  const el = document.getElementById('conexion'), t = document.getElementById('conexionTxt');
+  el.classList.remove('ok','mal');
+  if (S.conectado === true){ el.classList.add('ok'); t.textContent = `Conectado a BOCETO: ${S.guardados.length} vuelos guardados.`; }
+  else if (S.conectado === false){ el.classList.add('mal'); t.textContent = 'No se pudo leer BOCETO. Toca Actualizar para reintentar.'; }
+  else t.textContent = 'Conectando con BOCETO…';
+}
+function renderSubir(){
+  const z = document.getElementById('zonaSubir'), tx = document.getElementById('subirTxt'), ac = document.getElementById('subirAcciones');
+  if (S.pendientes.length){
+    z.classList.add('pendiente');
+    tx.innerHTML = `<h2>Excel nuevo listo para guardar</h2><p><b>${S.pendientes.length}</b> vuelos nuevos de <b>${esc(S.archivo.name)}</b>${S.repetidos?`. ${S.repetidos} ya estaban en BOCETO y no se repiten`:''}. Revísalos abajo y toca <b>Guardar</b>.</p>`;
+    ac.innerHTML = `<button class="btn" type="button" id="btnDescartar">Descartar</button><button class="btn prim" type="button" id="btnElegir">Cambiar archivo</button>`;
+    document.getElementById('btnDescartar').onclick = () => { S.pendientes = []; S.archivo = null; S.repetidos = 0; render(); };
+  } else {
+    z.classList.remove('pendiente');
+    tx.innerHTML = `<h2>¿Quieres subir un Excel nuevo? Hazlo aquí</h2><p>Arrastra el Excel que bajaste de la plataforma DJI o elígelo. Se guarda en la carpeta VUELOS DRONES 26-27 y los vuelos pasan a BOCETO.</p>`;
+    ac.innerHTML = `<button class="btn prim" type="button" id="btnElegir">Elegir Excel de DJI</button>`;
+  }
+  document.getElementById('btnElegir').onclick = () => document.getElementById('archivo').click();
+}
+function renderBotonGuardar(){
+  const n = porGuardar().length, b = document.getElementById('btnGuardar');
+  b.disabled = n === 0;
+  b.textContent = S.pendientes.length ? `Guardar Excel nuevo en Drive y BOCETO (${n})` : (n ? `Guardar cambios en BOCETO (${n})` : 'Todo guardado');
+}
+
+function agregado(lista){
+  let area=0, litros=0, teo=0, litrosT=0, fuera=0, pend=0, sinTasa=0;
+  lista.forEach(v => { const r = calc(v); area += v.area; litros += v.litros;
+    if (r.ltsTeo !== null){ teo += r.ltsTeo; litrosT += v.litros; } else sinTasa++;
+    if (r.dentro === false){ fuera++; if (!v.nJust) pend++; } });
+  return { n:lista.length, area, litros, teo, real: area ? litros/area : null, var: teo ? (litrosT-teo)/teo : null, fuera, pend, sinTasa };
+}
+function renderResumen(){
+  const a = agregado(visibles());
+  document.getElementById('resumen').innerHTML = `
+    <div class="dato"><b>${a.n}</b><span>vuelos</span></div>
+    <div class="dato"><b>${f2(a.area)}</b><span>hectáreas aplicadas</span></div>
+    <div class="dato"><b>${f2(a.litros)}</b><span>litros reales</span></div>
+    <div class="dato"><b>${f2(a.teo)}</b><span>litros teóricos</span></div>
+    <div class="dato"><b>${f2(a.real)}</b><span>L/ha real promedio</span></div>
+    <div class="dato"><b class="${clase(a.var)}">${pc(a.var)}</b><span>variación total</span></div>
+    <div class="dato ${a.pend?'alerta':''}"><b>${a.pend}</b><span>fuera de ±${S.cfg.tol}% sin justificar</span></div>
+    ${a.sinTasa?`<div class="dato alerta"><b>${a.sinTasa}</b><span>con plantilla desconocida</span></div>`:''}`;
+}
+
+/* ============ Gráficas ============ */
+const GRUPOS = {
+  dia:{ t:'Día', f:v => v.fecha }, drone:{ t:'Drone', f:v => v.drone }, lote:{ t:'Lote', f:valLote },
+  sup:{ t:'Supervisor', f:valSup }, plantilla:{ t:'Plantilla', f:v => v.plantilla || '—' }, piloto:{ t:'Piloto', f:valPil }
+};
+function renderGrupo(){
+  const el = document.getElementById('segGrupo');
+  el.innerHTML = Object.entries(GRUPOS).map(([k,g]) => `<button type="button" aria-pressed="${S.grupo===k}" data-g="${k}">${g.t}</button>`).join('');
+  el.querySelectorAll('button').forEach(b => b.onclick = () => { S.grupo = b.dataset.g; renderGrupo(); renderGraficas(); });
+}
+function grafica(id, cfg){
+  if (G[id]) G[id].destroy();
+  G[id] = new Chart(document.getElementById(id), cfg);
+}
+function ejes(extraY = {}){
+  return {
+    x:{ stacked:true, ticks:{ color:css('--gris'), maxRotation:60, autoSkip:true }, grid:{ display:false } },
+    y:{ stacked:true, beginAtZero:true, ticks:{ color:css('--gris') }, grid:{ color:css('--linea') }, ...extraY }
+  };
+}
+const leyenda = { labels:{ color:css('--tinta') || '#888', boxWidth:12, boxHeight:12 } };
+const COLOR_OBS = () => ({ 'Bueno':css('--bien'), 'Sin justificar':css('--alerta'), 'Sin plantilla':css('--gris') });
+const PALETA_OBS = ['#e0a33c','#5fa8e0','#a58be0','#d86a9a','#4ec1b5','#e07a4a','#c9c95a','#9aa7b8'];
+
+function renderGraficas(){
+  const lista = visibles(), g = GRUPOS[S.grupo];
+  const cats = [...new Set(lista.map(g.f))].sort((a,b) => String(a).localeCompare(String(b), 'es', {numeric:true}));
+  const drones = [...new Set(lista.map(v => v.drone))].sort();
+  const suma = (fil, val) => cats.map(c => lista.filter(v => g.f(v) === c && fil(v)).reduce((s,v) => s + val(v), 0));
+  const r2 = x => +x.toFixed(2);
+  const tip = { callbacks:{ label: it => `${it.dataset.label}: ${f2(it.raw)}` } };
+
+  // Litros
+  grafica('gLitros', { type:'bar', data:{ labels:cats, datasets:[
+      ...drones.map(d => ({ label:d, data:suma(v => v.drone === d, v => v.litros).map(r2), backgroundColor:colorDrone(d), stack:'r' })),
+      { type:'line', label:'Teórico', data:suma(() => true, v => calc(v).ltsTeo || 0).map(r2), showLine:false, pointStyle:'line', pointRadius:14, pointHoverRadius:16, borderWidth:3, borderColor:css('--tinta'), backgroundColor:css('--tinta') }
+    ]}, options:{ responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:leyenda, tooltip:tip }, scales:ejes({ title:{ display:true, text:'Litros', color:css('--gris') } }) } });
+
+  // Hectáreas
+  grafica('gHa', { type:'bar', data:{ labels:cats, datasets:
+      drones.map(d => ({ label:d, data:suma(v => v.drone === d, v => v.area).map(r2), backgroundColor:colorDrone(d) }))
+    }, options:{ responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:leyenda, tooltip:tip }, scales:ejes({ title:{ display:true, text:'Hectáreas', color:css('--gris') } }) } });
+
+  // Variación real ponderada por grupo
+  const tol = S.cfg.tol;
+  const varCat = cats.map(c => { const a = agregado(lista.filter(v => g.f(v) === c)); return a.var === null ? null : +(a.var*100).toFixed(2); });
+  document.getElementById('notaVar').textContent = `Litros reales contra teóricos de cada ${g.t.toLowerCase()}. Verde dentro de ±${tol}%.`;
+  grafica('gVar', { type:'bar', data:{ labels:cats, datasets:[
+      { label:'Variación %', data:varCat, backgroundColor:varCat.map(x => x === null ? css('--gris') : Math.abs(x) <= tol ? css('--bien') : css('--alerta')), borderRadius:3 },
+      { type:'line', label:`+${tol}%`, data:cats.map(()=>tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
+      { type:'line', label:`-${tol}%`, data:cats.map(()=>-tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
+    ]}, options:{ responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false}, tooltip:{ filter:it => it.datasetIndex === 0, callbacks:{ label:it => `Variación: ${f2(it.raw)}%` } } },
+      scales:{ x:{ ticks:{ color:css('--gris'), maxRotation:60 }, grid:{ display:false } }, y:{ ticks:{ color:css('--gris'), callback:v => v+'%' }, grid:{ color:css('--linea') } } } } });
+
+  // Observaciones (dona)
+  const obsCont = {}; lista.forEach(v => { const o = calc(v).obs; obsCont[o] = (obsCont[o] || 0) + 1; });
+  const obsNombres = Object.keys(obsCont).sort((a,b) => obsCont[b] - obsCont[a]);
+  const CO = COLOR_OBS(); let k = 0;
+  const colObs = {}; obsNombres.forEach(o => colObs[o] = CO[o] || PALETA_OBS[k++ % PALETA_OBS.length]);
+  grafica('gObs', { type:'doughnut', data:{ labels:obsNombres, datasets:[{ data:obsNombres.map(o => obsCont[o]), backgroundColor:obsNombres.map(o => colObs[o]), borderColor:css('--panel'), borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, cutout:'58%',
+      plugins:{ legend:{ position:'right', labels:{ color:css('--tinta'), boxWidth:12, generateLabels: ch => ch.data.labels.map((l,i) => ({ text:`${l}: ${ch.data.datasets[0].data[i]}`, fillStyle:ch.data.datasets[0].backgroundColor[i], strokeStyle:'transparent', fontColor:css('--tinta'), index:i, hidden:!ch.getDataVisibility(i) })) } },
+        tooltip:{ callbacks:{ label: it => { const t = it.dataset.data.reduce((a,b)=>a+b,0); return `${it.label}: ${it.raw} vuelos (${Math.round(it.raw/t*100)}%)`; } } } } } });
+
+  // Observaciones por drone (apilada)
+  grafica('gObsDrone', { type:'bar', data:{ labels:drones, datasets:
+      obsNombres.map(o => ({ label:o, data:drones.map(d => lista.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:colObs[o] }))
+    }, options:{ responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:leyenda }, scales:ejes({ title:{ display:true, text:'Vuelos', color:css('--gris') }, ticks:{ color:css('--gris'), precision:0 } }) } });
+}
+
+function renderDrones(){
+  const lista = visibles(), drones = [...new Set(lista.map(v => v.drone))].sort();
+  let h = `<thead><tr><th>Drone</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">Litros</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Fuera</th></tr></thead><tbody>`;
+  drones.forEach(d => { const a = agregado(lista.filter(v => v.drone === d));
+    h += `<tr><td><span class="col" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorDrone(d)};margin-right:6px"></span><b>${esc(d)}</b></td><td class="num">${a.n}</td><td class="num">${f2(a.area)}</td><td class="num">${f2(a.litros)}</td><td class="num">${f2(a.real)}</td><td class="num ${clase(a.var)}">${pc(a.var)}</td><td class="num">${a.fuera}</td></tr>`; });
+  const t = agregado(lista);
+  h += `<tr><td><b>Total</b></td><td class="num"><b>${t.n}</b></td><td class="num"><b>${f2(t.area)}</b></td><td class="num"><b>${f2(t.litros)}</b></td><td class="num"><b>${f2(t.real)}</b></td><td class="num ${clase(t.var)}"><b>${pc(t.var)}</b></td><td class="num"><b>${t.fuera}</b></td></tr>`;
+  document.getElementById('tablaDrones').innerHTML = h + '</tbody>';
+}
+
+function renderVuelos(){
+  const lista = visibles(), tol = S.cfg.tol;
+  const datos = lista.map(v => { const r = calc(v); return r.varReal === null ? null : +(r.varReal*100).toFixed(2); });
+  const colores = lista.map(v => { const r = calc(v); return r.dentro ? css('--bien') : (v.nJust ? css('--aviso') : css('--alerta')); });
+  const unaFecha = new Set(lista.map(v => v.fecha)).size === 1;
+  document.getElementById('grafCaja').style.width = (lista.length * 14) + 'px';
+  document.getElementById('notaGraf').textContent = `Cada barra es un vuelo contra su plantilla. Verde dentro de ±${tol}%, ámbar justificado, rojo pendiente.${lista.length > 60 ? ' Desliza hacia los lados para ver todos.' : ''}`;
+  grafica('gVuelos', { type:'bar', data:{ labels:lista.map(v => `${v.drone} ${unaFecha ? '' : v.fecha.slice(5)+' '}${v.ini.slice(0,5)}`), datasets:[
+      { label:'Variación %', data:datos, backgroundColor:colores, borderRadius:2 },
+      { type:'line', data:lista.map(()=>tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
+      { type:'line', data:lista.map(()=>-tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
+    ]}, options:{ responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false}, tooltip:{ filter:it => it.datasetIndex === 0, callbacks:{
+        title: it => { const v = lista[it[0].dataIndex]; return `${v.drone} · ${v.fecha} ${v.ini}`; },
+        label: it => { const v = lista[it.dataIndex], r = calc(v);
+          return [`Variación: ${pc(r.varReal)}`, `Real: ${f2(r.real)} L/ha  |  Teórico: ${v.tasa ?? '?'} L/ha`, `Área: ${f2(v.area)} ha  |  Lote: ${v.lote || '–'}`, `Observación: ${r.obs}`]; } } } },
+      scales:{ y:{ ticks:{ callback:v => v+'%', color:css('--gris') }, grid:{ color:css('--linea') } }, x:{ ticks:{ maxRotation:70, autoSkip:true, color:css('--gris') }, grid:{ display:false } } } } });
+}
+
+function renderTabla(){
+  const J = listaJust(), admin = esAdmin();
+  const opc = (sel, bueno) => [`<option value="">${bueno ? 'Bueno' : '—'}</option>`, ...Object.entries(J).map(([n,t]) => `<option value="${esc(n)}" ${n===sel?'selected':''}>${esc(n)}. ${esc(t)}</option>`)].join('');
+  let h = `<thead><tr>
+    <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th>Piloto</th><th>Plantilla</th>
+    <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th>
+    <th class="num fijo">Porcentaje de var</th><th class="num fijo">Real aplicado</th><th class="num fijo">Var real aplicado</th>
+    <th class="edit">Justificación</th><th class="edit">Lote</th><th class="edit">Supervisor</th><th>Estado</th></tr></thead><tbody>`;
+  const lista = todos();
+  visibles().forEach(v => {
+    const r = calc(v), i = lista.indexOf(v);
+    let est = r.dentro === null ? '<span class="pill m">Sin plantilla</span>' : r.dentro ? '<span class="pill b">Dentro</span>' : v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>';
+    if (v.nuevo) est += ' <span class="pill n">Nuevo</span>';
+    const cJust = admin ? `<select data-i="${i}" data-k="nJust" aria-label="Justificación">${opc(v.nJust, r.dentro)}</select>` : esc(r.obs);
+    const cLote = admin ? `<input class="lote" data-i="${i}" data-k="lote" value="${esc(v.lote)}" aria-label="Lote">` : esc(v.lote);
+    const cSup  = admin ? `<input class="sup" list="listaSup" data-i="${i}" data-k="sup" value="${esc(v.sup)}" aria-label="Supervisor">` : esc(v.sup);
+    h += `<tr class="${r.dentro===false?'fuera':''} ${v.nJust?'just':''} ${v.cambio?'cambio':''}">
+      <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${esc(v.piloto)}</td><td>${esc(v.plantilla)}</td>
+      <td class="num">${v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
+      <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
+      <td>${cJust}</td><td>${cLote}</td><td>${cSup}</td><td>${est}</td></tr>`;
+  });
+  const t = document.getElementById('tablaVuelos');
+  t.innerHTML = h + '</tbody>';
+  if (!admin) return;
+  t.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
+    const v = lista[+el.dataset.i]; v[el.dataset.k] = el.value.trim();
+    if (el.dataset.k === 'nJust') v.justTxt = '';
+    if (!v.nuevo) v.cambio = true;
+    if (el.dataset.k === 'nJust') render(); else { el.closest('tr').classList.toggle('cambio', v.cambio); renderBotonGuardar(); }
+  }));
+  document.getElementById('listaSup').innerHTML = listaSup().map(s => `<option value="${esc(s)}">`).join('');
+}
+
+/* ============ Guardar ============ */
+function fila(v){
+  const r = calc(v), red = (x,d) => x === null || x === undefined ? '' : +x.toFixed(d);
+  return [ v.fecha, v.ini, v.fin, v.dur, v.drone, v.piloto, v.ubic, v.plantilla,
+    v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
+    red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
+    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo ];
+}
+
+async function actualizar(silencioso){
+  const b = document.getElementById('btnActualizar');
+  if (!silencioso && S.guardados.some(v => v.cambio) && !confirm('Tienes cambios sin guardar. Si actualizas se pierden. ¿Continuar?')) return;
+  b.disabled = true; b.textContent = 'Actualizando…'; S.conectado = null; if (esAdmin()) renderConexion();
+  try{
+    const j = await llamar('datos');
+    if (j.cfg) S.cfg = { ...DEF, ...j.cfg };
+    S.guardados = desdeHoja(j.headers || [], j.rows || []);
+    S.conectado = true;
+    const ids = new Set(S.guardados.map(v => v.id)), antes = S.pendientes.length;
+    S.pendientes = S.pendientes.filter(v => !ids.has(v.id));
+    S.repetidos += antes - S.pendientes.length;
+  }catch(e){ console.error(e); S.conectado = false; if (S.ses) aviso(e.message, 7000); }
+  b.disabled = false; b.textContent = 'Actualizar';
+  render();
+}
+
+async function guardar(){
+  const est = document.getElementById('estado'), b = document.getElementById('btnGuardar');
+  const filas = porGuardar();
+  const sinJust = filas.filter(v => { const r = calc(v); return r.dentro === false && !v.nJust; }).length;
+  if (sinJust && !confirm(`${sinJust} vuelo(s) fuera de ±${S.cfg.tol}% no tienen justificación. ¿Guardar de todos modos? Puedes justificarlos después.`)) return;
+  b.disabled = true; est.textContent = 'Guardando…';
+  try{
+    let file = null;
+    if (S.pendientes.length && S.archivo){
+      const b64 = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = mal; r.readAsDataURL(S.archivo); });
+      file = { name:S.nombreDrive, mime:S.archivo.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data:b64 };
+    }
+    const j = await llamar('guardar', { file, headers:COLUMNAS, rows:filas.map(fila) });
+    est.innerHTML = `Guardado: ${j.agregados} nuevo(s), ${j.actualizados} actualizado(s).` + (j.archivo ? ` <a href="${esc(j.archivo)}" target="_blank" rel="noopener">Ver Excel en Drive</a>` : '');
+    S.pendientes = []; S.archivo = null; S.repetidos = 0;
+    S.guardados.forEach(v => v.cambio = false);
+    await actualizar(true);
+    aviso('Guardado en BOCETO.');
+  }catch(e){ console.error(e); est.textContent = 'No se guardó: ' + e.message; if (S.ses) aviso('No se guardó: ' + e.message, 7000); }
+  if (S.ses) renderBotonGuardar();
+}
+
+/* ============ Subir Excel ============ */
+async function cargarArchivo(file){
+  if (!file || !esAdmin()) return;
+  try{
+    const vuelos = leerExcelDJI(await file.arrayBuffer());
+    const fechas = vuelos.map(v => v.fecha).sort(), a = fechas[0], z = fechas[fechas.length-1], ah = new Date();
+    S.nombreDrive = `VUELOS_DJI_${a}${z!==a?'_a_'+z:''}_subido_${ah.getFullYear()}${dos(ah.getMonth()+1)}${dos(ah.getDate())}_${dos(ah.getHours())}${dos(ah.getMinutes())}.xlsx`;
+    vuelos.forEach(v => v.archivo = S.nombreDrive);
+    const ids = new Set(S.guardados.map(v => v.id));
+    S.pendientes = vuelos.filter(v => !ids.has(v.id));
+    S.repetidos = vuelos.length - S.pendientes.length;
+    S.archivo = file;
+    if (S.pendientes.length){ const f = S.pendientes.map(v => v.fecha).sort(); S.F.desde = f[0]; S.F.hasta = f[f.length-1]; }
+    document.getElementById('estado').textContent = '';
+    render();
+    aviso(S.pendientes.length ? `${S.pendientes.length} vuelos nuevos listos para guardar.` : 'Todos los vuelos de este Excel ya estaban en BOCETO.', 5000);
+  }catch(e){ console.error(e); aviso('No se pudo leer el archivo: ' + e.message, 6000); }
+}
+document.getElementById('archivo').onchange = e => { cargarArchivo(e.target.files[0]); e.target.value=''; };
+const zona = document.getElementById('zonaSubir');
+['dragenter','dragover'].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('sobre'); }));
+['dragleave','drop'].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('sobre'); }));
+zona.addEventListener('drop', e => cargarArchivo(e.dataTransfer.files[0]));
+
+document.getElementById('btnActualizar').onclick = () => actualizar(false);
+document.getElementById('btnGuardar').onclick = guardar;
+function aplicarTodos(k, val){ if (!val) return; visibles().forEach(v => { v[k] = val; if (!v.nuevo) v.cambio = true; }); render(); }
+document.getElementById('btnSupTodos').onclick = () => aplicarTodos('sup', document.getElementById('supTodos').value.trim());
+document.getElementById('btnLoteTodos').onclick = () => aplicarTodos('lote', document.getElementById('loteTodos').value.trim());
+document.getElementById('btnDescargar').onclick = () => {
+  const ws = XLSX.utils.aoa_to_sheet([COLUMNAS, ...visibles().map(fila)]);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'VUELOS');
+  XLSX.writeFile(wb, `VUELOS_filtrados.xlsx`);
+};
+
+/* ============ Ajustes (compartidos en BOCETO) ============ */
+const dlg = document.getElementById('dlgAjustes');
+document.getElementById('btnAjustes').onclick = () => {
+  document.getElementById('cfgPlantillas').value = S.cfg.plantillas;
+  document.getElementById('cfgJust').value = S.cfg.just;
+  document.getElementById('cfgSup').value = S.cfg.sup;
+  document.getElementById('cfgTol').value = S.cfg.tol;
+  dlg.showModal();
+};
+document.getElementById('btnCerrarAj').onclick = () => dlg.close();
+document.getElementById('btnGuardarAj').onclick = async () => {
+  const nuevo = {
+    plantillas:document.getElementById('cfgPlantillas').value, just:document.getElementById('cfgJust').value,
+    sup:document.getElementById('cfgSup').value, tol:num(document.getElementById('cfgTol').value) ?? DEF.tol
+  };
+  const b = document.getElementById('btnGuardarAj'); b.disabled = true;
+  try{
+    await llamar('config', { cfg:nuevo });
+    S.cfg = nuevo;
+    const m = mapaPlantillas();
+    todos().forEach(v => { const t = m[norm(v.plantilla)]; if (t !== undefined && v.tasa !== t){ v.tasa = t; if (!v.nuevo) v.cambio = true; } });
+    dlg.close(); render(); aviso('Ajustes guardados para todos.');
+  }catch(e){ aviso('No se guardaron los ajustes: ' + e.message, 6000); }
+  b.disabled = false;
+};
+
+/* ============ Inicio ============ */
+S.ses = leerSesion();
+if (S.ses && S.ses.token) entrarApp();
+</script>
+</body>
+</html>
