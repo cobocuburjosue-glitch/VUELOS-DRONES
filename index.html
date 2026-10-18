@@ -185,6 +185,17 @@ button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
 .coment .meta a{color:var(--caña)}
 .coment p{margin:6px 0;white-space:pre-wrap}
 .coment .acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.asig-rapida{display:grid;grid-template-columns:minmax(150px,200px) minmax(0,1fr);gap:12px 16px;align-items:start;background:color-mix(in srgb,var(--tallo) 7%,var(--panel));border:1px solid var(--linea);border-radius:10px;padding:14px;margin:6px 0 12px}
+.asig-rapida label.et{font-size:12.5px;color:var(--gris);font-weight:600;display:block;margin-bottom:4px}
+.asig-rapida select{width:100%;border:1px solid var(--linea);border-radius:6px;padding:7px 8px;background:var(--papel)}
+.asig-rapida .personas{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end;grid-column:1/-1}
+.asig-rapida .chips{display:flex;flex-wrap:wrap;gap:8px}
+.asig-rapida .chip small{font-weight:500;opacity:.8}
+.asig-rapida .chip.listo:not([aria-pressed="true"]){border-color:var(--bien)}
+@media (max-width:640px){.asig-rapida{grid-template-columns:1fr}}
+details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--caña);margin:4px 0 8px}
+.r-barra label{display:flex;gap:6px;align-items:center;font-size:14px}
+.r-barra input[type=date]{border-radius:6px;border:0;padding:5px 8px;color:#1d2419;background:#fff;font:inherit}
 .chk-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px}
 .dlg-cuerpo .chk-lista label{font-weight:400;display:flex;gap:8px;align-items:center;margin:0}
 .dlg-cuerpo .chk-lista input{width:auto}
@@ -323,14 +334,26 @@ button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
       <section class="panel"><h3>Resumen por drone</h3><p class="nota">Con los filtros aplicados.</p><div style="overflow-x:auto"><table id="tablaDrones"></table></div></section>
       <section class="panel ancho"><div class="panel-cab"><div><h3>Hectáreas por piloto y supervisor</h3><p class="nota">Hectáreas aplicadas por cada persona, separando vuelos Bueno, justificados y pendientes de justificar.</p></div><div class="seg chico" id="segPersona" role="group" aria-label="Ver por"></div></div>
         <div class="persona"><div class="graf" id="cajaPersona"><canvas id="gPersona"></canvas></div><div style="overflow-x:auto"><table id="tablaPersona"></table></div></div></section>
-      <section class="panel"><h3>Observaciones</h3><p class="nota">Cantidad de vuelos por observación.</p><div class="graf"><canvas id="gObs"></canvas></div></section>
-      <section class="panel"><h3>Observaciones por drone</h3><p class="nota">Toca una observación en la leyenda para ocultarla.</p><div class="graf"><canvas id="gObsDrone"></canvas></div></section>
+      <section class="panel"><div class="panel-cab"><div><h3>Observaciones</h3><p class="nota">Cantidad de vuelos por observación.</p></div><details class="pick" id="pkObs"></details></div><div class="graf"><canvas id="gObs"></canvas></div></section>
+      <section class="panel"><div class="panel-cab"><div><h3>Observaciones por drone</h3><p class="nota">Usa los filtros para elegir observaciones y drones.</p></div><div class="der"><details class="pick" id="pkObs2"></details><details class="pick" id="pkObsDr"></details></div></div><div class="graf"><canvas id="gObsDrone"></canvas></div></section>
     </div>
 
     <section class="panel solo-admin" id="panelAsignar" style="margin-top:8px">
-      <div class="panel-cab"><div><h3>Piloto y supervisor por día</h3><p class="nota">Elige qué piloto voló cada drone ese día y qué supervisor estuvo. Se coloca solo en todos los vuelos de ese drone en ese día y se guarda en BOCETO. <span id="nFaltaAsignar"></span></p></div>
-        <label class="nota" style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="soloSinPiloto"> Solo los que faltan</label></div>
-      <div class="tabla-scroll" style="max-height:420px"><table id="tablaAsignar"></table></div>
+      <div class="panel-cab"><div><h3>Piloto y supervisor por día</h3><p class="nota">Elige el día, marca los drones que voló el piloto y aplícalo una sola vez: se coloca en todos los vuelos de esos drones ese día y se guarda en BOCETO. <span id="nFaltaAsignar"></span></p></div></div>
+      <div class="asig-rapida">
+        <div><label class="et" for="aFecha">Día</label><select id="aFecha"></select></div>
+        <div><label class="et">Drones que voló</label><div class="chips" id="aDrones"></div></div>
+        <div class="personas">
+          <div><label class="et" for="aPiloto">Piloto</label><select id="aPiloto"></select></div>
+          <div><label class="et" for="aSup">Supervisor</label><select id="aSup"></select></div>
+          <div><button class="btn verde" type="button" id="btnAsignar" style="width:100%">Aplicar a todos esos vuelos</button></div>
+        </div>
+        <p class="nota" id="aResumen" style="grid-column:1/-1;margin:0"></p>
+      </div>
+      <details class="detalle-asig"><summary>Ver y corregir drone por drone</summary>
+        <label class="nota" style="display:flex;gap:6px;align-items:center;margin:0 0 8px"><input type="checkbox" id="soloSinPiloto"> Solo los que faltan</label>
+        <div class="tabla-scroll" style="max-height:420px"><table id="tablaAsignar"></table></div>
+      </details>
     </section>
 
     <h2 style="font-size:24px;margin:26px 0 4px">Detalle de vuelos</h2>
@@ -421,9 +444,12 @@ button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
 
 <div id="reporte" class="oculto">
   <div class="r-barra">
-    <b>Reporte semanal</b>
-    <label>Semana <select id="rSemana" aria-label="Semana del reporte"></select></label>
-    <button class="btn prim" type="button" id="btnImprimir">Imprimir o guardar PDF</button>
+    <b>Reporte</b>
+    <label>Semana <select id="rSemana" aria-label="Elegir una semana"></select></label>
+    <label>Desde <input type="date" id="rDesde"></label>
+    <label>Hasta <input type="date" id="rHasta"></label>
+    <button class="btn prim" type="button" id="btnGenerarRep">Generar reporte</button>
+    <button class="btn" type="button" id="btnImprimir">Imprimir o guardar PDF</button>
     <button class="btn" type="button" id="btnCerrarRep">Cerrar</button>
     <span class="ayuda">En la ventana de impresión elige “Guardar como PDF”. En el teléfono también funciona.</span>
   </div>
@@ -460,7 +486,7 @@ const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla
 const S = {
   ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
   cfg:{...DEF}, listas:{ just:[], sup:[], pil:[] }, conectado:null, error:'', grupo:'dia',
-  grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set() },
+  grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set(), obs:new Set(), obsDr:new Set() }, asig:{ fecha:'', drones:new Set() },
   comentarios:[], foco:'', soloSinPiloto:false,
   F:{ desde:'', hasta:'', plantilla:'', piloto:'', sup:'', lote:'', estado:'', obs:'', drones:new Set() },
   T:{ drone:'', estado:'' }
@@ -832,11 +858,11 @@ const barra = { borderRadius:6, borderSkipped:false, maxBarThickness:64, categor
 const PALETA_OBS = ['#e0a33c','#5fa8e0','#a58be0','#d86a9a','#4ec1b5','#e07a4a','#c9c95a','#9aa7b8'];
 
 /* Selector "Mostrar" para elegir qué columnas se ven en una gráfica */
-function armarPick(id, key, cats, lab){
+function armarPick(id, key, cats, lab, titulo = 'Mostrar'){
   const el = document.getElementById(id), oc = S.ocultas[key];
   [...oc].forEach(c => { if (!cats.includes(c)) oc.delete(c); });
   const vis = cats.filter(c => !oc.has(c)).length, abierto = el.open;
-  el.innerHTML = `<summary>Mostrar: ${vis === cats.length ? 'todos' : `${vis} de ${cats.length}`}</summary><div class="pick-panel">
+  el.innerHTML = `<summary>${titulo}: ${vis === cats.length ? 'todos' : `${vis} de ${cats.length}`}</summary><div class="pick-panel">
     <div class="pick-acc"><button type="button" class="btn chico" data-a="todos">Todos</button><button type="button" class="btn chico" data-a="ninguno">Ninguno</button></div>
     ${cats.map(c => `<label><input type="checkbox" value="${esc(c)}" ${oc.has(c) ? '' : 'checked'}> ${esc(lab ? lab(c) : c)}</label>`).join('')}</div>`;
   el.open = abierto;
@@ -908,16 +934,21 @@ function renderGraficas(){
 
   // Observaciones
   const obsCont = {}; lista.forEach(v => { const o = calc(v).obs; obsCont[o] = (obsCont[o] || 0) + 1; });
-  const obsNombres = Object.keys(obsCont).sort((a,b) => obsCont[b] - obsCont[a]);
+  const obsTodas = Object.keys(obsCont).sort((a,b) => obsCont[b] - obsCont[a]);
   const fijos = { [BUENO]:css('--bien'), 'Pendiente de justificar':css('--alerta'), [SIN_PLANTILLA]:css('--gris') };
-  let k = 0; const colObs = {}; obsNombres.forEach(o => colObs[o] = fijos[o] || PALETA_OBS[k++ % PALETA_OBS.length]);
+  let k = 0; const colObs = {}; obsTodas.forEach(o => colObs[o] = fijos[o] || PALETA_OBS[k++ % PALETA_OBS.length]);
+  armarPick('pkObs', 'obs', obsTodas, o => `${o} (${obsCont[o]})`, 'Observaciones');
+  armarPick('pkObs2', 'obs', obsTodas, o => `${o} (${obsCont[o]})`, 'Observaciones');
+  armarPick('pkObsDr', 'obsDr', drones, null, 'Drones');
+  const obsNombres = obsTodas.filter(o => !S.ocultas.obs.has(o));
+  const dronesObs = drones.filter(d => !S.ocultas.obsDr.has(d));
   grafica('gObs', { type:'doughnut', data:{ labels:obsNombres, datasets:[{ data:obsNombres.map(o => obsCont[o]), backgroundColor:obsNombres.map(o => colObs[o]), borderColor:css('--panel'), borderWidth:3, borderRadius:4 }] },
     options:{ ...base, cutout:'60%',
       plugins:{ legend:{ position:'right', labels:{ color:css('--tinta'), boxWidth:12, generateLabels: ch => ch.data.labels.map((l,i) => ({ text:`${l}: ${ch.data.datasets[0].data[i]}`, fillStyle:ch.data.datasets[0].backgroundColor[i], strokeStyle:'transparent', fontColor:css('--tinta'), index:i, hidden:!ch.getDataVisibility(i) })) } },
         tooltip:{ callbacks:{ label: it => { const t = it.dataset.data.reduce((a,b)=>a+b,0); return `${it.label}: ${it.raw} vuelos (${Math.round(it.raw/t*100)}%)`; } } } } } });
 
-  grafica('gObsDrone', { type:'bar', data:{ labels:drones, datasets:
-      obsNombres.map(o => ({ label:o, data:drones.map(d => lista.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:degradado(colObs[o]), ...barra }))
+  grafica('gObsDrone', { type:'bar', data:{ labels:dronesObs, datasets:
+      obsNombres.map(o => ({ label:o, data:dronesObs.map(d => lista.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:degradado(colObs[o]), ...barra }))
     }, options:{ ...base, plugins:{ legend:leyenda(), totales:{ mostrar:true, fmt:x => x } }, scales:ejes('Vuelos', { ticks:{ color:css('--gris'), precision:0 } }) } });
 }
 
@@ -964,7 +995,8 @@ function renderAsignar(){
   const unico = (vs, k) => { const s = new Set(vs.map(v => v[k] || '')); return s.size === 1 ? [...s][0] : null; };
   const falta = f => f.vs.some(v => !v.piloto || !v.sup);
   const nFalta = filas.filter(falta).length;
-  document.getElementById('nFaltaAsignar').textContent = nFalta ? `Faltan ${nFalta} de ${filas.length}.` : 'Todos tienen piloto y supervisor.';
+  document.getElementById('nFaltaAsignar').textContent = nFalta ? `Faltan ${nFalta} de ${filas.length} combinaciones de drone y día.` : 'Todos tienen piloto y supervisor.';
+  renderAsigRapida();
   document.getElementById('soloSinPiloto').checked = S.soloSinPiloto;
   if (S.soloSinPiloto) filas = filas.filter(falta);
   const pil = listaPilotos(), sup = listaSup();
@@ -984,6 +1016,55 @@ function renderAsignar(){
     asignarDia(el.dataset.f, el.dataset.d, el.dataset.k, val);
   }));
 }
+function renderAsigRapida(){
+  const A = S.asig, T = todos();
+  const fechas = ordenar(T.map(v => v.fecha)).reverse();
+  const falta = f => T.some(v => v.fecha === f && (!v.piloto || !v.sup));
+  if (!fechas.includes(A.fecha)){ A.fecha = fechas.find(falta) || fechas[0] || ''; A.drones.clear(); }
+  document.getElementById('aFecha').innerHTML = fechas.map(f => `<option value="${esc(f)}" ${f===A.fecha?'selected':''}>${esc(fechaCorta(f))}/${f.slice(0,4)}${falta(f) ? ' · falta' : ''}</option>`).join('');
+  const delDia = T.filter(v => v.fecha === A.fecha), drones = ordenar(delDia.map(v => v.drone));
+  [...A.drones].forEach(d => { if (!drones.includes(d)) A.drones.delete(d); });
+  const cont = document.getElementById('aDrones');
+  cont.innerHTML = drones.map(d => {
+    const vs = delDia.filter(v => v.drone === d), pils = ordenar(vs.map(v => v.piloto)), listo = vs.every(v => v.piloto);
+    return `<button type="button" class="chip ${listo ? 'listo' : ''}" aria-pressed="${A.drones.has(d)}" data-d="${esc(d)}"><span class="col" style="background:${colorDrone(d)}"></span>${esc(d)} <small>${vs.length} vuelos${pils.length ? ' · ' + esc(pils.join(', ')) : ''}</small></button>`;
+  }).join('') + (drones.length > 1 ? `<button type="button" class="btn chico" id="aTodos">${A.drones.size === drones.length ? 'Quitar todos' : 'Marcar todos'}</button>` : '');
+  cont.querySelectorAll('.chip').forEach(b => b.onclick = () => { const d = b.dataset.d; A.drones.has(d) ? A.drones.delete(d) : A.drones.add(d); renderAsigRapida(); });
+  const bt = document.getElementById('aTodos');
+  if (bt) bt.onclick = () => { if (A.drones.size === drones.length) A.drones.clear(); else drones.forEach(d => A.drones.add(d)); renderAsigRapida(); };
+  const ps = document.getElementById('aPiloto'), ss = document.getElementById('aSup'), pv = ps.value, sv = ss.value;
+  ps.innerHTML = opcLista(listaPilotos(), '', 'Elegir piloto…'); ss.innerHTML = opcLista(listaSup(), '', 'No cambiar supervisor');
+  if ([...ps.options].some(o => o.value === pv)) ps.value = pv;
+  if ([...ss.options].some(o => o.value === sv)) ss.value = sv;
+  const n = delDia.filter(v => A.drones.has(v.drone)).length;
+  document.getElementById('aResumen').textContent = A.drones.size ? `Se aplicará a ${n} vuelos de ${[...A.drones].join(', ')} el ${A.fecha}.` : 'Marca uno o varios drones.';
+  document.getElementById('btnAsignar').disabled = !A.drones.size;
+}
+document.getElementById('aFecha').addEventListener('change', e => { S.asig.fecha = e.target.value; S.asig.drones.clear(); renderAsigRapida(); });
+['aPiloto','aSup'].forEach(id => document.getElementById(id).addEventListener('change', e => {
+  if (e.target.value !== '__otro') return;
+  const n = (prompt(`Escribe el nombre del ${id === 'aPiloto' ? 'piloto' : 'supervisor'}:`) || '').trim();
+  if (!n){ e.target.value = ''; return; }
+  const o = document.createElement('option'); o.textContent = n; o.value = n; e.target.insertBefore(o, e.target.lastElementChild); e.target.value = n;
+}));
+document.getElementById('btnAsignar').onclick = () => {
+  const A = S.asig, piloto = document.getElementById('aPiloto').value, sup = document.getElementById('aSup').value;
+  if (!piloto && !sup){ aviso('Elige el piloto (y si quieres, el supervisor).'); return; }
+  let n = 0, hay = false;
+  todos().forEach(v => {
+    if (v.fecha !== A.fecha || !A.drones.has(v.drone)) return;
+    let cambia = false;
+    if (piloto && v.piloto !== piloto){ v.piloto = piloto; cambia = true; }
+    if (sup && v.sup !== sup){ v.sup = sup; cambia = true; }
+    n++;
+    if (cambia && !v.nuevo){ v.cambio = true; v.ver++; hay = true; }
+  });
+  const drones = [...A.drones].join(', ');
+  A.drones.clear();
+  if (hay) programarAutoguardado();
+  render();
+  aviso(`${piloto || sup} quedó en ${n} vuelos de ${drones} del ${A.fecha}.`, 5000);
+};
 document.getElementById('soloSinPiloto').addEventListener('change', e => { S.soloSinPiloto = e.target.checked; renderAsignar(); });
 function asignarDia(fecha, drone, k, val){
   let hay = false;
@@ -1357,24 +1438,52 @@ function rEjes(tituloY, apilar, pct){
 const rLey = { labels:{ color:RC.tinta, boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'rectRounded' } };
 const fechaCorta = f => { const d = new Date(f + 'T12:00:00'); return isNaN(d) ? f : d.toLocaleDateString('es-GT', { weekday:'short', day:'2-digit', month:'2-digit' }); };
 
+const fechaLarga = f => { const d = new Date(f + 'T12:00:00'); return isNaN(d) ? f : `${dos(d.getDate())}/${dos(d.getMonth()+1)}/${d.getFullYear()}`; };
+function sumarDias(f, n){ const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${dos(d.getMonth()+1)}-${dos(d.getDate())}`; }
+let rangoRep = { desde:'', hasta:'' };
+function textoRango(desde, hasta){
+  const sem = semanaDe(desde);
+  const esSemana = sem === desde && sumarDias(desde, 6) === hasta;
+  return (desde === hasta ? `Día ${fechaLarga(desde)}` : `Del ${fechaLarga(desde)} al ${fechaLarga(hasta)}`) + (esSemana ? ` · Semana ${numSemana(new Date(desde + 'T12:00:00'))}` : '');
+}
 function abrirReporte(){
-  const semanas = ordenar(todos().map(v => semanaDe(v.fecha))).reverse();
-  if (!semanas.length){ aviso('No hay vuelos para el reporte.'); return; }
-  const sel = document.getElementById('rSemana');
-  sel.innerHTML = semanas.map(s => `<option value="${s}">${esc(etiquetaSemana(s, true))}</option>`).join('');
+  const fechas = ordenar(todos().map(v => v.fecha));
+  if (!fechas.length){ aviso('No hay vuelos para el reporte.'); return; }
+  const semanas = ordenar(fechas.map(semanaDe)).reverse();
+  document.getElementById('rSemana').innerHTML = '<option value="">Elegir semana…</option>' + semanas.map(s => `<option value="${s}">${esc(etiquetaSemana(s, true))}</option>`).join('');
+  // Toma las fechas filtradas en el dashboard; si no hay, la última semana
+  let desde = S.F.desde, hasta = S.F.hasta;
+  if (!desde && !hasta){ desde = semanas[0]; hasta = sumarDias(semanas[0], 6); }
+  desde = desde || fechas[0]; hasta = hasta || fechas[fechas.length - 1];
+  ['rDesde','rHasta'].forEach(id => { const el = document.getElementById(id); el.min = fechas[0]; el.max = sumarDias(fechas[fechas.length - 1], 6); });
+  document.getElementById('rDesde').value = desde; document.getElementById('rHasta').value = hasta;
+  document.getElementById('rSemana').value = semanas.includes(desde) && hasta === sumarDias(desde, 6) ? desde : '';
   document.body.classList.add('con-reporte');
   document.getElementById('reporte').classList.remove('oculto');
-  armarReporte(semanas[0]);
+  generarReporte();
 }
-document.getElementById('rSemana').addEventListener('change', e => armarReporte(e.target.value));
+function generarReporte(){
+  let desde = document.getElementById('rDesde').value, hasta = document.getElementById('rHasta').value;
+  if (!desde || !hasta){ aviso('Elige las fechas Desde y Hasta.'); return; }
+  if (desde > hasta){ [desde, hasta] = [hasta, desde]; document.getElementById('rDesde').value = desde; document.getElementById('rHasta').value = hasta; }
+  rangoRep = { desde, hasta };
+  armarReporte(desde, hasta);
+}
+document.getElementById('rSemana').addEventListener('change', e => {
+  if (!e.target.value) return;
+  document.getElementById('rDesde').value = e.target.value; document.getElementById('rHasta').value = sumarDias(e.target.value, 6);
+  generarReporte();
+});
+['rDesde','rHasta'].forEach(id => document.getElementById(id).addEventListener('change', () => { document.getElementById('rSemana').value = ''; }));
+document.getElementById('btnGenerarRep').onclick = generarReporte;
 document.getElementById('btnReporte').onclick = abrirReporte;
-document.getElementById('btnImprimir').onclick = () => { if (window.AppAndroid) AppAndroid.imprimir('Reporte vuelos ' + document.getElementById('rSemana').selectedOptions[0].text); else window.print(); };
+document.getElementById('btnImprimir').onclick = () => { const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta); if (window.AppAndroid) AppAndroid.imprimir(t); else window.print(); };
 document.getElementById('btnCerrarRep').onclick = () => { document.getElementById('reporte').classList.add('oculto'); document.body.classList.remove('con-reporte'); };
 
-function armarReporte(sem){
+function armarReporte(desde, hasta){
   const hoja = document.getElementById('hojaReporte');
   hoja.innerHTML = '<p style="padding:40px">Armando el reporte…</p>';
-  const lista = todos().filter(v => semanaDe(v.fecha) === sem);
+  const lista = todos().filter(v => v.fecha >= desde && v.fecha <= hasta), rango = textoRango(desde, hasta);
   const a = agregado(lista), tol = S.cfg.tol;
   const dias = ordenar(lista.map(v => v.fecha)), drones = ordenar(lista.map(v => v.drone));
   const r2 = x => +x.toFixed(2), rc = x => x === null ? '' : x > 0 ? 'rp' : 'rn';
@@ -1385,8 +1494,8 @@ function armarReporte(sem){
   const justificados = lista.filter(v => calc(v).estado === JUSTIFICAR && v.nJust);
   const pendientes = lista.filter(v => calc(v).estado === JUSTIFICAR && !v.nJust);
   const pctB = a.n ? Math.round(a.bueno / a.n * 100) : 0;
-  const lunes = new Date(sem + 'T12:00:00'), domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-  const enSemana = f => { const d = new Date(String(f).slice(0,10) + 'T12:00:00'); return d >= lunes && d <= new Date(domingo.getTime() + 86400000); };
+  const enRango = f => { const x = String(f).slice(0,10); return x >= desde && x <= hasta; };
+  if (!lista.length){ hoja.innerHTML = `<div class="r-cab"><div><h1>Reporte de vuelos de drones</h1><p>${esc(rango)}</p></div></div><div class="r-franja"></div><section><p class="r-vacio">No hay vuelos en esas fechas. Elige otro rango y toca Generar reporte.</p></section>`; return; }
 
   // Gráficas
   const gLit = imgReporte({ type:'bar', data:{ labels:dias.map(fechaCorta), datasets:[
@@ -1404,7 +1513,7 @@ function armarReporte(sem){
     options:{ plugins:{ legend:{ ...rLey, labels:{ ...rLey.labels, filter:it => it.text !== '' } } }, scales:rEjes('Variación', false, true) } });
   const varSem = porDrone.map(x => x.a.var === null ? null : +(x.a.var * 100).toFixed(2));
   const gVarSem = imgReporte({ type:'bar', data:{ labels:drones, datasets:[
-      { label:'Variación de la semana', data:varSem, backgroundColor:varSem.map(x => x !== null && Math.abs(x) <= tol ? RC.bien : RC.alerta), borderRadius:5, maxBarThickness:46 },
+      { label:'Variación del período', data:varSem, backgroundColor:varSem.map(x => x !== null && Math.abs(x) <= tol ? RC.bien : RC.alerta), borderRadius:5, maxBarThickness:46 },
       { type:'line', label:'', data:drones.map(() => tol), borderColor:RC.tallo, borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
       { type:'line', label:'', data:drones.map(() => -tol), borderColor:RC.tallo, borderDash:[6,4], pointRadius:0, borderWidth:1.5 } ]},
     options:{ plugins:{ legend:{ display:false } }, scales:rEjes('Variación', false, true) } }, 848, 260);
@@ -1423,22 +1532,22 @@ function armarReporte(sem){
   };
   const tablaVuelos = (vs, conJust) => vs.length ? `<table><thead><tr><th>Fecha</th><th>Hora</th><th>Drone</th><th>Piloto</th><th>Lote</th><th>Plantilla</th><th class="num">Teórico</th><th class="num">Real</th><th class="num">Var.</th>${conJust ? '<th>Justificación</th>' : ''}<th>Supervisor</th></tr></thead><tbody>`
       + vs.map(v => { const r = calc(v); return `<tr><td style="white-space:nowrap">${esc(v.fecha)}</td><td>${esc(v.ini.slice(0,5))}</td><td>${esc(v.drone)}</td><td>${esc(v.piloto || '–')}</td><td>${esc(v.lote || '–')}</td><td>${esc(v.plantilla)}</td><td class="num">${f2(v.tasa)}</td><td class="num">${f2(r.real)}</td><td class="num ${rc(r.varReal)}">${pc(r.varReal)}</td>${conJust ? `<td><b>${esc(r.justTexto)}</b></td>` : ''}<td>${esc(v.sup || '–')}</td></tr>`; }).join('') + '</tbody></table>'
-    : `<p class="r-vacio">${conJust ? 'No hubo vuelos justificados esta semana.' : 'No quedaron vuelos pendientes de justificar.'}</p>`;
+    : `<p class="r-vacio">${conJust ? 'No hubo vuelos justificados en estas fechas.' : 'No quedaron vuelos pendientes de justificar.'}</p>`;
   const justCont = {}; justificados.forEach(v => { const t = calc(v).justTexto; justCont[t] = (justCont[t] || 0) + 1; });
-  const coms = S.comentarios.filter(c => enSemana(c.fechaVuelo));
+  const coms = S.comentarios.filter(c => enRango(c.fechaVuelo));
 
   const mejor = conVar[0], peor = conVar[conVar.length - 1];
-  const narr = `Del ${etiquetaSemana(sem, true).replace(/^Semana \d+: del /,'')} se registraron <b>${a.n} vuelos</b> en ${dias.length} día(s) con ${drones.length} drone(s), aplicando <b>${f2(a.area)} ha</b> y <b>${f2(a.litros)} L</b> contra ${f2(a.teo)} L teóricos, una variación total de <b>${pc(a.var)}</b>. `
+  const narr = `${esc(rango.split(' · ')[0])} se registraron <b>${a.n} vuelos</b> en ${dias.length} día(s) con ${drones.length} drone(s), aplicando <b>${f2(a.area)} ha</b> y <b>${f2(a.litros)} L</b> contra ${f2(a.teo)} L teóricos, una variación total de <b>${pc(a.var)}</b>. `
     + `${a.bueno} vuelos (${pctB}%) quedaron dentro de ±${tol}% y ${a.justif} fuera del rango: ${justificados.length} justificados y ${pendientes.length} pendientes de justificar.`
     + (mejor && peor && mejor !== peor ? ` El drone con menor variación fue <b>${esc(mejor.d)}</b> (${pc(mejor.a.var)}) y el de mayor fue <b>${esc(peor.d)}</b> (${pc(peor.a.var)}).` : '');
   const hoy = new Date();
 
   hoja.innerHTML = `
     <div class="r-cab"><img src="${document.querySelector('.top .logo').src}" alt="Ingenio Madre Tierra">
-      <div><h1>Reporte semanal de vuelos de drones</h1><p>${esc(etiquetaSemana(sem, true))}</p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
+      <div><h1>Reporte de vuelos de drones</h1><p><b>${esc(rango)}</b></p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
       <div class="r-fecha">Generado el ${hoy.toLocaleDateString('es-GT')} ${dos(hoy.getHours())}:${dos(hoy.getMinutes())}<br>por ${esc(S.ses.nombre)}</div></div>
     <div class="r-franja"></div>
-    <section><h2>Resumen de la semana</h2>
+    <section><h2>Resumen del período</h2>
       <div class="r-kpis">
         <div><b>${a.n}</b><span>vuelos</span></div><div><b>${f2(a.area)}</b><span>hectáreas aplicadas</span></div>
         <div><b>${f2(a.litros)}</b><span>litros reales</span></div><div><b>${f2(a.teo)}</b><span>litros teóricos</span></div>
@@ -1451,13 +1560,13 @@ function armarReporte(sem){
       ${porDrone.map(x => `<tr><td><b>${esc(x.d)}</b></td><td class="num">${x.dias}</td><td class="num">${x.a.n}</td><td class="num">${f2(x.a.area)}</td><td class="num">${f2(x.a.litros)}</td><td class="num">${f2(x.a.real)}</td><td class="num ${rc(x.a.var)}">${pc(x.a.var)}</td><td class="num rb">${x.a.bueno}</td><td class="num">${x.a.justif}${x.a.pend ? ` (${x.a.pend} pend.)` : ''}</td><td>${esc(x.pilotos.join(', ') || '–')}</td></tr>`).join('')}
       <tr><td><b>Total</b></td><td class="num"><b>${dias.length}</b></td><td class="num"><b>${a.n}</b></td><td class="num"><b>${f2(a.area)}</b></td><td class="num"><b>${f2(a.litros)}</b></td><td class="num"><b>${f2(a.real)}</b></td><td class="num ${rc(a.var)}"><b>${pc(a.var)}</b></td><td class="num rb"><b>${a.bueno}</b></td><td class="num"><b>${a.justif}</b></td><td></td></tr>
       </tbody></table></section>
-    <section><h2>Variación de la semana por drone</h2><img class="r-graf" src="${gVarSem}" alt="Variación de la semana por drone"></section>
+    <section><h2>Variación del período por drone</h2><img class="r-graf" src="${gVarSem}" alt="Variación del período por drone"></section>
     <section><h2>Variación real por día y drone</h2><img class="r-graf" src="${gVarDia}" alt="Variación por día y drone"></section>
     <section><h2>Litros aplicados por día</h2><img class="r-graf" src="${gLit}" alt="Litros aplicados por día"></section>
     <section><h2>Hectáreas aplicadas por día</h2><img class="r-graf" src="${gHa}" alt="Hectáreas aplicadas por día"></section>
     <section class="r-larga"><h2>Pilotos y supervisores</h2>${tablaPersonas(valPil, 'Por piloto')}${tablaPersonas(valSup, 'Por supervisor')}</section>
     <section><h2>Observaciones</h2><div class="r-dos"><img class="r-graf" src="${gObs}" alt="Observaciones">
-      <div><h3>Justificaciones de la semana</h3>${Object.keys(justCont).length ? `<table><thead><tr><th>Justificación</th><th class="num">Vuelos</th></tr></thead><tbody>${Object.entries(justCont).sort((x,y) => y[1] - x[1]).map(([t,n]) => `<tr><td>${esc(t)}</td><td class="num">${n}</td></tr>`).join('')}</tbody></table>` : '<p class="r-vacio">Sin justificaciones registradas.</p>'}</div></div></section>
+      <div><h3>Justificaciones del período</h3>${Object.keys(justCont).length ? `<table><thead><tr><th>Justificación</th><th class="num">Vuelos</th></tr></thead><tbody>${Object.entries(justCont).sort((x,y) => y[1] - x[1]).map(([t,n]) => `<tr><td>${esc(t)}</td><td class="num">${n}</td></tr>`).join('')}</tbody></table>` : '<p class="r-vacio">Sin justificaciones registradas.</p>'}</div></div></section>
     <section class="r-larga"><h2>Vuelos justificados (${justificados.length})</h2>${tablaVuelos(justificados, true)}</section>
     <section class="r-larga"><h2>Vuelos pendientes de justificar (${pendientes.length})</h2>${tablaVuelos(pendientes, false)}</section>
     ${coms.length ? `<section class="r-larga"><h2>Comentarios del usuario PUBLICO (${coms.length})</h2><table><thead><tr><th>Vuelo</th><th>De</th><th>Comentario</th><th>Estado</th></tr></thead><tbody>${coms.map(c => `<tr><td>${esc(c.fechaVuelo)} ${esc(c.hora)} · ${esc(c.drone)}</td><td>${esc(c.nombre)} ${esc(c.apellido)}</td><td>${esc(c.comentario)}</td><td>${esc(c.estado)}</td></tr>`).join('')}</tbody></table></section>` : ''}
