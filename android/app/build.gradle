@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+def numeroVersion = (System.getenv('VERSION_CODE') ?: '1').toInteger()
+
+android {
+    namespace 'com.cobo.vuelosdrones'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.cobo.vuelosdrones'
+        minSdk 24
+        targetSdk 34
+        versionCode numeroVersion
+        versionName "1.${numeroVersion}"
+    }
+
+    // Llave fija para que cada APK nuevo se instale encima del anterior.
+    signingConfigs {
+        app {
+            storeFile file('vuelos.keystore')
+            storePassword 'vuelosdrones'
+            keyAlias 'vuelos'
+            keyPassword 'vuelosdrones'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.app
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

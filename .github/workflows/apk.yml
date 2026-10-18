@@ -1,0 +1,54 @@
+name: Construir APK
+
+# Arma la app de Android y la publica en Releases.
+# Solo corre cuando cambia la carpeta android/ (los cambios del index.html
+# se ven en la app sin reinstalarla) o cuando se lanza a mano desde Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Compilar APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Preparar archivo
+        run: cp android/app/build/outputs/apk/release/app-release.apk VUELOS-DRONES.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VUELOS-DRONES-apk
+          path: VUELOS-DRONES.apk
+
+      - name: Publicar en Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete app-android --yes --cleanup-tag || true
+          gh release create app-android VUELOS-DRONES.apk \
+            --title "App Android · versión 1.${{ github.run_number }}" \
+            --notes "Descarga VUELOS-DRONES.apk en el teléfono y ábrelo para instalar. Si Android lo pide, permite instalar apps de esta fuente." \
+            --latest
