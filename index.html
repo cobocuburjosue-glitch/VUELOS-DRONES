@@ -195,6 +195,10 @@ button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
 @media (max-width:640px){.asig-rapida{grid-template-columns:1fr}}
 details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--caña);margin:4px 0 8px}
 .r-barra label{display:flex;gap:6px;align-items:center;font-size:14px}
+.r-barra .r-pick summary{background:#fff;color:#1d2419;border:0;padding:6px 10px;font-size:14px}
+.r-barra .r-pick .pick-panel{left:0;right:auto;color:#1d2419;background:#fff}
+.r-barra .r-pick .pick-panel label{display:flex;font-size:14px}
+.r-barra .r-pick .btn{background:#f0f2ec;color:#1d2419;border-color:#dfe3d7}
 .r-barra input[type=date]{border-radius:6px;border:0;padding:5px 8px;color:#1d2419;background:#fff;font:inherit}
 .chk-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px}
 .dlg-cuerpo .chk-lista label{font-weight:400;display:flex;gap:8px;align-items:center;margin:0}
@@ -238,6 +242,15 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
 .hoja .r-dos{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .hoja .r-vacio{color:#6c7466;font-style:italic}
 .hoja .r-pie{padding:16px 36px 0;font-size:12px;color:#6c7466}
+@media screen and (max-width:720px){
+  .hoja .r-cab{flex-wrap:wrap;padding:18px}
+  .hoja .r-cab .r-fecha{margin-left:0;text-align:left}
+  .hoja section{padding:14px 16px 4px;overflow-x:auto}
+  .hoja .r-kpis{grid-template-columns:repeat(2,1fr)}
+  .hoja .r-dos{grid-template-columns:1fr}
+  .r-barra{position:static}
+  .hoja{margin-top:12px}
+}
 @media print{
   body.con-reporte #app, body.con-reporte #login, body.con-reporte dialog, body.con-reporte .toast{display:none!important}
   body.con-reporte{background:#fff}
@@ -448,6 +461,7 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     <label>Semana <select id="rSemana" aria-label="Elegir una semana"></select></label>
     <label>Desde <input type="date" id="rDesde"></label>
     <label>Hasta <input type="date" id="rHasta"></label>
+    <details class="pick r-pick" id="rPlantillas"></details>
     <button class="btn prim" type="button" id="btnGenerarRep">Generar reporte</button>
     <button class="btn" type="button" id="btnImprimir">Imprimir o guardar PDF</button>
     <button class="btn" type="button" id="btnCerrarRep">Cerrar</button>
@@ -525,7 +539,9 @@ function listaJust(){
 const lineas = t => String(t||'').split('\n').map(s => s.trim()).filter(Boolean);
 const listaSup = () => ordenar([...S.listas.sup, ...lineas(S.cfg.sup), ...todos().map(v => v.sup)]);
 /* Pilotos: los de BOCETO + los de Ajustes + los ya usados */
-const listaPilotos = () => ordenar([...(S.listas.pil || []), ...lineas(S.cfg.pilotos), ...todos().map(v => v.piloto)]);
+/* Maestro de pilotos de drones (siempre aparecen en las listas) */
+const MAESTRO_PILOTOS = ['Allan Sánchez', 'Kenny Sánchez', 'Luis Posadas', 'Alvaro Miranda', 'Wilder Medina', 'José Roca'];
+const listaPilotos = () => ordenar([...MAESTRO_PILOTOS, ...(S.listas.pil || []), ...lineas(S.cfg.pilotos), ...todos().map(v => v.piloto)]);
 /* Plantillas que ve PUBLICO: las que Cobo marcó, o por defecto solo las de madurante */
 function plantillaPublica(p){
   const k = norm(p);
@@ -870,7 +886,7 @@ function armarPick(id, key, cats, lab, titulo = 'Mostrar'){
   el.querySelector('[data-a=todos]').onclick = () => { oc.clear(); renderGraficas(); };
   el.querySelector('[data-a=ninguno]').onclick = () => { cats.forEach(c => oc.add(c)); renderGraficas(); };
 }
-document.addEventListener('click', e => document.querySelectorAll('details.pick[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
+document.addEventListener('click', e => { if (!e.target.isConnected) return; document.querySelectorAll('details.pick[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
 
 function renderGraficas(){
   const lista = visibles(), g = GRUPOS[S.grupo], lab = g.lab || (x => x);
@@ -1312,8 +1328,8 @@ document.getElementById('btnAjustes').onclick = () => {
     ? `De BOCETO: ${S.listas.sup.join(', ')}. Aquí puedes agregar otros, uno por línea.`
     : 'Escribe aquí los supervisores, uno por línea.';
   document.getElementById('notaPil').textContent = (S.listas.pil || []).length
-    ? `De BOCETO: ${S.listas.pil.join(', ')}. Aquí puedes agregar otros, uno por línea.`
-    : 'Escribe aquí los pilotos, uno por línea. Si en BOCETO tienes una columna PILOTO en otra pestaña, también se toman de ahí.';
+    ? `Maestro de pilotos: ${MAESTRO_PILOTOS.join(', ')}. De BOCETO: ${S.listas.pil.join(', ')}. Aquí puedes agregar otros, uno por línea.`
+    : `Maestro de pilotos: ${MAESTRO_PILOTOS.join(', ')}. Si entra un piloto nuevo, escríbelo aquí, uno por línea.`;
   document.getElementById('cfgPublico').innerHTML = nombresParaPublico().map(p =>
     `<label><input type="checkbox" value="${esc(p)}" ${plantillaPublica(p) ? 'checked' : ''}> ${esc(p)}</label>`).join('');
   dlg.showModal();
@@ -1440,7 +1456,7 @@ const fechaCorta = f => { const d = new Date(f + 'T12:00:00'); return isNaN(d) ?
 
 const fechaLarga = f => { const d = new Date(f + 'T12:00:00'); return isNaN(d) ? f : `${dos(d.getDate())}/${dos(d.getMonth()+1)}/${d.getFullYear()}`; };
 function sumarDias(f, n){ const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${dos(d.getMonth()+1)}-${dos(d.getDate())}`; }
-let rangoRep = { desde:'', hasta:'' };
+let rangoRep = { desde:'', hasta:'' }, plantillasRep = new Set();
 function textoRango(desde, hasta){
   const sem = semanaDe(desde);
   const esSemana = sem === desde && sumarDias(desde, 6) === hasta;
@@ -1458,14 +1474,30 @@ function abrirReporte(){
   ['rDesde','rHasta'].forEach(id => { const el = document.getElementById(id); el.min = fechas[0]; el.max = sumarDias(fechas[fechas.length - 1], 6); });
   document.getElementById('rDesde').value = desde; document.getElementById('rHasta').value = hasta;
   document.getElementById('rSemana').value = semanas.includes(desde) && hasta === sumarDias(desde, 6) ? desde : '';
+  // Plantillas: las del filtro del dashboard o todas
+  plantillasRep = new Set(S.F.plantilla ? [S.F.plantilla] : ordenar(todos().map(v => v.plantilla)));
+  pintarPlantillasRep();
   document.body.classList.add('con-reporte');
   document.getElementById('reporte').classList.remove('oculto');
   generarReporte();
+}
+function pintarPlantillasRep(){
+  const el = document.getElementById('rPlantillas'), todas = ordenar(todos().map(v => v.plantilla)), abierto = el.open;
+  const n = todas.filter(p => plantillasRep.has(p)).length;
+  el.innerHTML = `<summary>Plantillas: ${n === todas.length ? 'todas' : n === 1 ? esc(todas.find(p => plantillasRep.has(p))) : `${n} de ${todas.length}`}</summary><div class="pick-panel">
+    <div class="pick-acc"><button type="button" class="btn chico" data-a="todas">Todas</button><button type="button" class="btn chico" data-a="ninguna">Ninguna</button></div>
+    ${todas.map(p => `<label><input type="checkbox" value="${esc(p)}" ${plantillasRep.has(p) ? 'checked' : ''}> ${esc(p)}</label>`).join('')}</div>`;
+  el.open = abierto;
+  el.querySelectorAll('input').forEach(i => i.onchange = () => { i.checked ? plantillasRep.add(i.value) : plantillasRep.delete(i.value); pintarPlantillasRep(); });
+  el.querySelector('[data-a=todas]').onclick = () => { todas.forEach(p => plantillasRep.add(p)); pintarPlantillasRep(); };
+  el.querySelector('[data-a=ninguna]').onclick = () => { plantillasRep.clear(); pintarPlantillasRep(); };
 }
 function generarReporte(){
   let desde = document.getElementById('rDesde').value, hasta = document.getElementById('rHasta').value;
   if (!desde || !hasta){ aviso('Elige las fechas Desde y Hasta.'); return; }
   if (desde > hasta){ [desde, hasta] = [hasta, desde]; document.getElementById('rDesde').value = desde; document.getElementById('rHasta').value = hasta; }
+  if (!plantillasRep.size){ aviso('Marca al menos una plantilla.'); return; }
+  document.getElementById('rPlantillas').open = false;
   rangoRep = { desde, hasta };
   armarReporte(desde, hasta);
 }
@@ -1477,25 +1509,28 @@ document.getElementById('rSemana').addEventListener('change', e => {
 ['rDesde','rHasta'].forEach(id => document.getElementById(id).addEventListener('change', () => { document.getElementById('rSemana').value = ''; }));
 document.getElementById('btnGenerarRep').onclick = generarReporte;
 document.getElementById('btnReporte').onclick = abrirReporte;
-document.getElementById('btnImprimir').onclick = () => { const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta); if (window.AppAndroid) AppAndroid.imprimir(t); else window.print(); };
+document.getElementById('btnImprimir').onclick = () => { const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta).split(' · ')[0]; if (window.AppAndroid) AppAndroid.imprimir(t); else window.print(); };
 document.getElementById('btnCerrarRep').onclick = () => { document.getElementById('reporte').classList.add('oculto'); document.body.classList.remove('con-reporte'); };
 
 function armarReporte(desde, hasta){
   const hoja = document.getElementById('hojaReporte');
   hoja.innerHTML = '<p style="padding:40px">Armando el reporte…</p>';
-  const lista = todos().filter(v => v.fecha >= desde && v.fecha <= hasta), rango = textoRango(desde, hasta);
+  const todasP = ordenar(todos().map(v => v.plantilla)), elegidas = todasP.filter(p => plantillasRep.has(p));
+  const lista = todos().filter(v => v.fecha >= desde && v.fecha <= hasta && plantillasRep.has(v.plantilla)), rango = textoRango(desde, hasta);
+  const textoPlant = elegidas.length === todasP.length ? 'Todas las plantillas' : elegidas.join(', ');
   const a = agregado(lista), tol = S.cfg.tol;
   const dias = ordenar(lista.map(v => v.fecha)), drones = ordenar(lista.map(v => v.drone));
   const r2 = x => +x.toFixed(2), rc = x => x === null ? '' : x > 0 ? 'rp' : 'rn';
   const sumaDia = (fil, val) => dias.map(d => r2(lista.filter(v => v.fecha === d && fil(v)).reduce((s,v) => s + val(v), 0)));
   const varDe = vs => { const x = agregado(vs); return x.var === null ? null : +(x.var * 100).toFixed(2); };
   const porDrone = drones.map(d => { const vs = lista.filter(v => v.drone === d); return { d, vs, a:agregado(vs), dias:new Set(vs.map(v => v.fecha)).size, pilotos:ordenar(vs.map(v => v.piloto)) }; });
+  const porPlant = ordenar(lista.map(v => v.plantilla)).map(p => { const vs = lista.filter(v => v.plantilla === p); return { p, a:agregado(vs), tasa:vs[0].tasa, drones:ordenar(vs.map(v => v.drone)) }; });
   const conVar = porDrone.filter(x => x.a.var !== null).sort((x,y) => Math.abs(x.a.var) - Math.abs(y.a.var));
   const justificados = lista.filter(v => calc(v).estado === JUSTIFICAR && v.nJust);
   const pendientes = lista.filter(v => calc(v).estado === JUSTIFICAR && !v.nJust);
   const pctB = a.n ? Math.round(a.bueno / a.n * 100) : 0;
   const enRango = f => { const x = String(f).slice(0,10); return x >= desde && x <= hasta; };
-  if (!lista.length){ hoja.innerHTML = `<div class="r-cab"><div><h1>Reporte de vuelos de drones</h1><p>${esc(rango)}</p></div></div><div class="r-franja"></div><section><p class="r-vacio">No hay vuelos en esas fechas. Elige otro rango y toca Generar reporte.</p></section>`; return; }
+  if (!lista.length){ hoja.innerHTML = `<div class="r-cab"><div><h1>Reporte de vuelos de drones</h1><p>${esc(rango)}</p></div></div><div class="r-franja"></div><section><p class="r-vacio">No hay vuelos en esas fechas con las plantillas elegidas. Cambia las fechas o las plantillas y toca Generar reporte.</p></section>`; return; }
 
   // Gráficas
   const gLit = imgReporte({ type:'bar', data:{ labels:dias.map(fechaCorta), datasets:[
@@ -1544,7 +1579,7 @@ function armarReporte(desde, hasta){
 
   hoja.innerHTML = `
     <div class="r-cab"><img src="${document.querySelector('.top .logo').src}" alt="Ingenio Madre Tierra">
-      <div><h1>Reporte de vuelos de drones</h1><p><b>${esc(rango)}</b></p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
+      <div><h1>Reporte de vuelos de drones</h1><p><b>${esc(rango)}</b></p><p>Plantilla: <b>${esc(textoPlant)}</b></p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
       <div class="r-fecha">Generado el ${hoy.toLocaleDateString('es-GT')} ${dos(hoy.getHours())}:${dos(hoy.getMinutes())}<br>por ${esc(S.ses.nombre)}</div></div>
     <div class="r-franja"></div>
     <section><h2>Resumen del período</h2>
@@ -1555,6 +1590,11 @@ function armarReporte(desde, hasta){
         <div><b class="rb">${a.bueno}</b><span>Bueno (${pctB}%)</span></div><div><b class="${a.justif ? 'rp' : ''}">${a.justif}</b><span>Justificar · ${justificados.length} justificados, ${pendientes.length} pendientes</span></div>
       </div>
       <p class="r-texto">${narr}</p></section>
+    <section><h2>Desglose por plantilla</h2>
+      <table><thead><tr><th>Plantilla</th><th class="num">L/ha teórico</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">Litros reales</th><th class="num">Litros teóricos</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Bueno</th><th class="num">Justificar</th><th>Drones</th></tr></thead><tbody>
+      ${porPlant.map(x => `<tr><td><b>${esc(x.p || '—')}</b></td><td class="num">${f2(x.tasa)}</td><td class="num">${x.a.n}</td><td class="num">${f2(x.a.area)}</td><td class="num">${f2(x.a.litros)}</td><td class="num">${f2(x.a.teo)}</td><td class="num">${f2(x.a.real)}</td><td class="num ${rc(x.a.var)}">${pc(x.a.var)}</td><td class="num rb">${x.a.bueno}</td><td class="num">${x.a.justif}${x.a.pend ? ` (${x.a.pend} pend.)` : ''}</td><td>${esc(x.drones.join(', '))}</td></tr>`).join('')}
+      ${porPlant.length > 1 ? `<tr><td><b>Total</b></td><td></td><td class="num"><b>${a.n}</b></td><td class="num"><b>${f2(a.area)}</b></td><td class="num"><b>${f2(a.litros)}</b></td><td class="num"><b>${f2(a.teo)}</b></td><td class="num"><b>${f2(a.real)}</b></td><td class="num ${rc(a.var)}"><b>${pc(a.var)}</b></td><td class="num rb"><b>${a.bueno}</b></td><td class="num"><b>${a.justif}</b></td><td></td></tr>` : ''}
+      </tbody></table></section>
     <section><h2>Desempeño por drone</h2>
       <table><thead><tr><th>Drone</th><th class="num">Días</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">Litros</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Bueno</th><th class="num">Justificar</th><th>Pilotos</th></tr></thead><tbody>
       ${porDrone.map(x => `<tr><td><b>${esc(x.d)}</b></td><td class="num">${x.dias}</td><td class="num">${x.a.n}</td><td class="num">${f2(x.a.area)}</td><td class="num">${f2(x.a.litros)}</td><td class="num">${f2(x.a.real)}</td><td class="num ${rc(x.a.var)}">${pc(x.a.var)}</td><td class="num rb">${x.a.bueno}</td><td class="num">${x.a.justif}${x.a.pend ? ` (${x.a.pend} pend.)` : ''}</td><td>${esc(x.pilotos.join(', ') || '–')}</td></tr>`).join('')}
