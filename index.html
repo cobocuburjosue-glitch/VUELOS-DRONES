@@ -263,7 +263,9 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
   .hoja section{break-inside:avoid-page}
   .hoja section.r-larga{break-inside:auto}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:A4;margin:10mm}
+  @page{size:A4;margin:0}
+  .hoja section{padding-top:16px}
+  .hoja .r-pie{padding-bottom:12mm}
 }
 .toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 16px;border-radius:8px;z-index:50;max-width:90vw}
 @media (prefers-reduced-motion:no-preference){.toast{animation:sube .25s ease-out}@keyframes sube{from{opacity:0;transform:translate(-50%,8px)}}}
@@ -1511,7 +1513,13 @@ document.getElementById('rSemana').addEventListener('change', e => {
 ['rDesde','rHasta'].forEach(id => document.getElementById(id).addEventListener('change', () => { document.getElementById('rSemana').value = ''; }));
 document.getElementById('btnGenerarRep').onclick = generarReporte;
 document.getElementById('btnReporte').onclick = abrirReporte;
-document.getElementById('btnImprimir').onclick = () => { const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta).split(' · ')[0]; if (window.AppAndroid) AppAndroid.imprimir(t); else window.print(); };
+document.getElementById('btnImprimir').onclick = () => {
+  const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta).split(' · ')[0].replace(/\//g, '-') + ' - Creado por Cobo Cubur';
+  if (window.AppAndroid){ AppAndroid.imprimir(t); return; }
+  const antes = document.title; document.title = t;   // nombre del PDF al guardar
+  window.print();
+  setTimeout(() => { document.title = antes; }, 1000);
+};
 document.getElementById('btnCerrarRep').onclick = () => { document.getElementById('reporte').classList.add('oculto'); document.body.classList.remove('con-reporte'); };
 
 function armarReporte(desde, hasta){
@@ -1590,7 +1598,7 @@ function armarReporte(desde, hasta){
   hoja.innerHTML = `
     <div class="r-cab"><img src="${document.querySelector('.top .logo').src}" alt="Ingenio Madre Tierra">
       <div><h1>Reporte de vuelos de drones</h1><p><b>${esc(rango)}</b></p><p>Plantilla: <b>${esc(textoPlant)}</b></p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
-      <div class="r-fecha">Generado el ${hoy.toLocaleDateString('es-GT')} ${dos(hoy.getHours())}:${dos(hoy.getMinutes())}<br>por ${esc(S.ses.nombre)}</div></div>
+      <div class="r-fecha">Generado el ${hoy.toLocaleDateString('es-GT')} ${dos(hoy.getHours())}:${dos(hoy.getMinutes())}<br>Creado por Cobo Cubur</div></div>
     <div class="r-franja"></div>
     <section><h2>Resumen del período</h2>
       <div class="r-kpis">
@@ -1620,7 +1628,7 @@ function armarReporte(desde, hasta){
     <section class="r-larga"><h2>Vuelos justificados (${justificados.length})</h2>${tablaVuelos(justificados, true)}</section>
     <section class="r-larga"><h2>Vuelos pendientes de justificar (${pendientes.length})</h2>${tablaVuelos(pendientes, false)}</section>
     ${coms.length ? `<section class="r-larga"><h2>Comentarios del usuario PUBLICO (${coms.length})</h2><table><thead><tr><th>Vuelo</th><th>De</th><th>Comentario</th><th>Estado</th></tr></thead><tbody>${coms.map(c => `<tr><td>${esc(c.fechaVuelo)} ${esc(c.hora)} · ${esc(c.drone)}</td><td>${esc(c.nombre)} ${esc(c.apellido)}</td><td>${esc(c.comentario)}</td><td>${esc(c.estado)}</td></tr>`).join('')}</tbody></table></section>` : ''}
-    <p class="r-pie">Tolerancia usada: ±${tol}%. Variación = (L/ha real − L/ha teórico) ÷ L/ha teórico. Fuente: hoja BOCETO.</p>`;
+    <p class="r-pie">Tolerancia usada: ±${tol}%. Variación = (L/ha real − L/ha teórico) ÷ L/ha teórico. Fuente: hoja BOCETO.<br><b>Creado por Cobo Cubur</b></p>`;
 }
 
 /* ============ Inicio ============ */
