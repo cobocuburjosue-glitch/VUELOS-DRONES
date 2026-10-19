@@ -349,8 +349,8 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
       <section class="panel ancho"><h3>Resumen por drone</h3><p class="nota">Con los filtros aplicados.</p><div style="overflow-x:auto"><table id="tablaDrones"></table></div></section>
       <section class="panel ancho"><div class="panel-cab"><div><h3>Hectáreas por piloto y supervisor</h3><p class="nota">Hectáreas aplicadas por cada persona, separando vuelos Bueno, justificados y pendientes de justificar.</p></div><div class="seg chico" id="segPersona" role="group" aria-label="Ver por"></div></div>
         <div class="persona"><div class="graf" id="cajaPersona"><canvas id="gPersona"></canvas></div><div style="overflow-x:auto"><table id="tablaPersona"></table></div></div></section>
-      <section class="panel"><div class="panel-cab"><div><h3>Observaciones</h3><p class="nota">Cantidad de vuelos por observación.</p></div><details class="pick" id="pkObs"></details></div><div class="graf"><canvas id="gObs"></canvas></div></section>
-      <section class="panel"><div class="panel-cab"><div><h3>Observaciones por drone</h3><p class="nota">Usa los filtros para elegir observaciones y drones.</p></div><div class="der"><details class="pick" id="pkObs2"></details><details class="pick" id="pkObsDr"></details></div></div><div class="graf"><canvas id="gObsDrone"></canvas></div></section>
+      <section class="panel"><div class="panel-cab"><div><h3>Observaciones</h3><p class="nota">Cantidad de vuelos por observación.</p></div><div class="der"><details class="pick" id="pkObs"></details><details class="pick" id="pkObsSup"></details></div></div><div class="graf"><canvas id="gObs"></canvas></div></section>
+      <section class="panel"><div class="panel-cab"><div><h3>Observaciones por drone</h3><p class="nota">Usa los filtros para elegir observaciones, supervisores y drones.</p></div><div class="der"><details class="pick" id="pkObs2"></details><details class="pick" id="pkObsSup2"></details><details class="pick" id="pkObsDr"></details></div></div><div class="graf"><canvas id="gObsDrone"></canvas></div></section>
     </div>
 
     <section class="panel solo-admin" id="panelAsignar" style="margin-top:8px">
@@ -502,7 +502,7 @@ const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla
 const S = {
   ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
   cfg:{...DEF}, listas:{ just:[], sup:[], pil:[] }, conectado:null, error:'', grupo:'dia',
-  grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set(), obs:new Set(), obsDr:new Set() }, asig:{ fecha:'', drones:new Set() },
+  grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set(), obs:new Set(), obsDr:new Set(), obsSup:new Set() }, asig:{ fecha:'', drones:new Set() },
   comentarios:[], foco:'', soloSinPiloto:false,
   F:{ desde:'', hasta:'', plantillas:new Set(), piloto:'', sup:'', lote:'', estado:'', obs:'', drones:new Set() },
   T:{ drone:'', estado:'' }
@@ -948,7 +948,10 @@ function renderGraficas(){
   renderPersona();
 
   // Observaciones
-  const obsCont = {}; lista.forEach(v => { const o = calc(v).obs; obsCont[o] = (obsCont[o] || 0) + 1; });
+  const supsObs = ordenar(lista.map(valSup));
+  armarPick('pkObsSup', 'obsSup', supsObs, null, 'Supervisores'); armarPick('pkObsSup2', 'obsSup', supsObs, null, 'Supervisores');
+  const listaObs = lista.filter(v => !S.ocultas.obsSup.has(valSup(v)));
+  const obsCont = {}; listaObs.forEach(v => { const o = calc(v).obs; obsCont[o] = (obsCont[o] || 0) + 1; });
   const obsTodas = Object.keys(obsCont).sort((a,b) => obsCont[b] - obsCont[a]);
   const fijos = { [BUENO]:css('--bien'), 'Pendiente de justificar':css('--alerta'), [SIN_PLANTILLA]:css('--gris') };
   let k = 0; const colObs = {}; obsTodas.forEach(o => colObs[o] = fijos[o] || PALETA_OBS[k++ % PALETA_OBS.length]);
@@ -956,14 +959,14 @@ function renderGraficas(){
   armarPick('pkObs2', 'obs', obsTodas, o => `${o} (${obsCont[o]})`, 'Observaciones');
   armarPick('pkObsDr', 'obsDr', drones, null, 'Drones');
   const obsNombres = obsTodas.filter(o => !S.ocultas.obs.has(o));
-  const dronesObs = drones.filter(d => !S.ocultas.obsDr.has(d));
+  const dronesObs = drones.filter(d => !S.ocultas.obsDr.has(d) && listaObs.some(v => v.drone === d));
   grafica('gObs', { type:'doughnut', data:{ labels:obsNombres, datasets:[{ data:obsNombres.map(o => obsCont[o]), backgroundColor:obsNombres.map(o => colObs[o]), borderColor:css('--panel'), borderWidth:3, borderRadius:4 }] },
     options:{ ...base, cutout:'60%',
       plugins:{ legend:{ position:'right', labels:{ color:css('--tinta'), boxWidth:12, generateLabels: ch => ch.data.labels.map((l,i) => ({ text:`${l}: ${ch.data.datasets[0].data[i]}`, fillStyle:ch.data.datasets[0].backgroundColor[i], strokeStyle:'transparent', fontColor:css('--tinta'), index:i, hidden:!ch.getDataVisibility(i) })) } },
         tooltip:{ callbacks:{ label: it => { const t = it.dataset.data.reduce((a,b)=>a+b,0); return `${it.label}: ${it.raw} vuelos (${Math.round(it.raw/t*100)}%)`; } } } } } });
 
   grafica('gObsDrone', { type:'bar', data:{ labels:dronesObs, datasets:
-      obsNombres.map(o => ({ label:o, data:dronesObs.map(d => lista.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:degradado(colObs[o]), ...barra }))
+      obsNombres.map(o => ({ label:o, data:dronesObs.map(d => listaObs.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:degradado(colObs[o]), ...barra }))
     }, options:{ ...base, plugins:{ legend:leyenda(), totales:{ mostrar:true, fmt:x => x } }, scales:ejes('Vuelos', { ticks:{ color:css('--gris'), precision:0 } }) } });
 }
 
