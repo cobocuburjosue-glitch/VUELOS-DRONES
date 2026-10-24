@@ -181,6 +181,12 @@ dialog::backdrop{background:rgba(10,20,10,.5)}
 .badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--alerta);color:#fff;font-size:12px;line-height:20px;text-align:center;margin-left:6px}
 tr.foco td{background:color-mix(in srgb,var(--tallo) 22%,transparent)!important}
 button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
+.ayuda-btn{display:inline-grid;place-items:center;width:19px;height:19px;margin-left:4px;border-radius:50%;border:1.5px solid rgba(255,255,255,.75);background:transparent;color:#fff;font:700 12px/1 "Barlow",sans-serif;cursor:pointer;vertical-align:middle;padding:0}
+.ayuda-btn:hover{background:#fff;color:var(--verde-fijo)}
+.ayuda-btn:focus-visible{outline:3px solid var(--tallo);outline-offset:1px}
+.formula{font-family:"Barlow Condensed",sans-serif;font-size:20px;background:color-mix(in srgb,var(--tallo) 12%,var(--panel));border:1px solid var(--linea);border-radius:8px;padding:10px 14px;margin:0}
+.ejemplo{border-left:3px solid var(--tallo);padding:4px 0 4px 12px;margin:0;font-size:14.5px}
+.ejemplo b{font-variant-numeric:tabular-nums}
 .coment-lista{display:grid;gap:10px}
 .coment{border:1px solid var(--linea);border-radius:8px;padding:10px 12px}
 .coment.pend{border-left:4px solid var(--alerta)}
@@ -456,6 +462,12 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     <button class="btn" type="button" id="btnComCancelar">Cancelar</button>
     <button class="btn verde" type="submit" form="formComentario" id="btnComEnviar">Enviar comentario</button>
   </div>
+</dialog>
+
+<dialog id="dlgAyuda" style="max-width:560px">
+  <div class="dlg-cab"><h2 id="ayudaTitulo">¿Cómo se calcula?</h2></div>
+  <div class="dlg-cuerpo" id="ayudaCuerpo" style="gap:12px"></div>
+  <div class="dlg-pie"><button class="btn verde" type="button" id="btnAyudaCerrar">Entendido</button></div>
 </dialog>
 
 <dialog id="dlgAccesos" style="max-width:900px">
@@ -1165,7 +1177,7 @@ function renderTabla(){
   let h = `<thead><tr>
     <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th class="edit">Piloto</th><th class="edit">Plantilla</th>
     <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th>
-    <th class="num fijo">Porcentaje de var</th><th class="num fijo">Real aplicado</th><th class="num fijo">Var real aplicado</th>
+    <th class="num fijo">Porcentaje de var <button type="button" class="ayuda-btn" data-ayuda="pct" aria-label="¿Cómo se calcula el porcentaje de var?">?</button></th><th class="num fijo">Real aplicado <button type="button" class="ayuda-btn" data-ayuda="real" aria-label="¿Cómo se calcula el real aplicado?">?</button></th><th class="num fijo">Var real aplicado <button type="button" class="ayuda-btn" data-ayuda="var" aria-label="¿Cómo se calcula la var real aplicada?">?</button></th>
     <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th>${admin ? '' : '<th>Comentar</th>'}</tr></thead><tbody>`;
   const lista = todos(), filas = enTabla();
   filas.forEach(v => {
@@ -1188,6 +1200,7 @@ function renderTabla(){
   t.innerHTML = h + '</tbody>';
   const aJ = filas.filter(v => calc(v).estado === JUSTIFICAR).length;
   document.getElementById('tConteo').textContent = `${filas.length} vuelos · ${filas.length - aJ} Bueno · ${aJ} Justificar`;
+  t.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => abrirAyuda(b.dataset.ayuda));
   if (!admin){
     t.querySelectorAll('[data-c]').forEach(b => b.onclick = () => abrirComentar(lista[+b.dataset.c]));
     return;
@@ -1480,6 +1493,34 @@ function verVuelo(id){
 }
 document.getElementById('btnComentarios').onclick = () => abrirComentarios('');
 document.getElementById('btnComCerrar').onclick = () => dlgComs.close();
+
+/* ============ Ayuda: cómo se calculan las columnas ============ */
+const dlgAyuda = document.getElementById('dlgAyuda');
+function abrirAyuda(cual){
+  const v = enTabla().find(x => x.tasa && x.area) || todos().find(x => x.tasa && x.area);
+  const r = v ? calc(v) : null, tol = S.cfg.tol, n = x => f2(x), r2 = x => Math.round(x * 100) / 100;
+  // el ejemplo usa los mismos números redondeados que se ven, para que la cuenta cuadre a mano
+  const n4 = x => x.toLocaleString('es-GT', { minimumFractionDigits:2, maximumFractionDigits:4 }), teoR = v ? r2(r.ltsTeo) : 0, realR = v ? r2(r.real) : 0;
+  const ej = v ? `Ejemplo con el vuelo de <b>${esc(v.drone)}</b> del ${esc(v.fecha)} a las ${esc(v.ini.slice(0,5))} (${esc(v.plantilla)}):` : '';
+  const T = {
+    pct: { t:'Porcentaje de var',
+      f:'(Litros reales − Litros teóricos) ÷ Litros reales × 100',
+      d:'Dice qué parte de los litros que realmente salieron del drone fue de más o de menos respecto a lo que se debía aplicar. Los litros teóricos son el área aplicada por los litros por hectárea de la plantilla.',
+      e: v ? `<p class="ejemplo">${ej}<br>Litros teóricos = ${n4(v.area)} ha × ${n(v.tasa)} L/ha = <b>${n(teoR)} L</b><br>(${n(v.litros)} − ${n(teoR)}) ÷ ${n(v.litros)} × 100 = <b>${pc((v.litros - teoR) / v.litros)}</b></p>` : '' },
+    real: { t:'Real aplicado',
+      f:'Litros reales ÷ Área aplicada (ha)',
+      d:'Son los litros por hectárea que el drone aplicó de verdad en ese vuelo. Se compara con los litros por hectárea de la plantilla (L/ha teórico).',
+      e: v ? `<p class="ejemplo">${ej}<br>${n(v.litros)} L ÷ ${n4(v.area)} ha = <b>${n(r.real)} L/ha</b> (la plantilla pide ${n(v.tasa)} L/ha)</p>` : '' },
+    var: { t:'Var real aplicado',
+      f:'(Real aplicado − L/ha teórico) ÷ L/ha teórico × 100',
+      d:`Dice cuánto se pasó o le faltó al drone contra los litros por hectárea de la plantilla. Si está entre −${tol}% y +${tol}% el vuelo es <b>Bueno</b>; si se sale de ese rango, toca <b>Justificar</b>. Positivo es que aplicó de más y negativo que aplicó de menos. En la tabla se ve en verde si está dentro del rango; fuera del rango, rojo si aplicó de más y azul si aplicó de menos.`,
+      e: v ? `<p class="ejemplo">${ej}<br>(${n4(r.real)} − ${n(v.tasa)}) ÷ ${n(v.tasa)} × 100 = <b>${pc(r.varReal)}</b> → <b>${r.dentro ? 'Bueno' : 'Justificar'}</b></p>` : '' }
+  }[cual];
+  document.getElementById('ayudaTitulo').textContent = `¿Cómo se calcula “${T.t}”?`;
+  document.getElementById('ayudaCuerpo').innerHTML = `<p class="formula">${esc(T.t)} = ${esc(T.f)}</p><p style="margin:0">${T.d}</p>${T.e}`;
+  dlgAyuda.showModal();
+}
+document.getElementById('btnAyudaCerrar').onclick = () => dlgAyuda.close();
 
 /* ============ Accesos del usuario PUBLICO ============ */
 const dlgAcc = document.getElementById('dlgAccesos');
