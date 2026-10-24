@@ -285,10 +285,10 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
       <div><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password" required></div>
       <div id="datosPublico" class="oculto" style="display:grid;gap:14px">
         <div class="dos-col">
-          <div><label for="logNombre">Nombre</label><input type="text" id="logNombre" maxlength="60" autocomplete="given-name"></div>
-          <div><label for="logApellido">Apellido</label><input type="text" id="logApellido" maxlength="60" autocomplete="family-name"></div>
+          <div><label for="logNombre">Nombre</label><input type="text" id="logNombre" maxlength="60" autocomplete="off"></div>
+          <div><label for="logApellido">Apellido</label><input type="text" id="logApellido" maxlength="60" autocomplete="off"></div>
         </div>
-        <div><label for="logCorreo">Correo electrónico</label><input type="email" id="logCorreo" maxlength="120" autocomplete="email"></div>
+        <div><label for="logCorreo">Correo electrónico</label><input type="email" id="logCorreo" maxlength="120" autocomplete="off"></div>
         <p class="nota" style="margin:-6px 0 0">Tu nombre y correo quedan registrados cada vez que consultas el dashboard.</p>
       </div>
       <label class="recordar"><input type="checkbox" id="recordar"> Mantener la sesión en este equipo</label>
@@ -610,6 +610,7 @@ function cerrarSesion(msg){
   document.getElementById('app').classList.add('oculto');
   document.getElementById('login').classList.remove('oculto');
   document.getElementById('clave').value = '';
+  limpiarVisitante();
   document.getElementById('loginError').textContent = msg || '';
   mostrarDatosPublico(norm(document.getElementById('usuario').value) === 'PUBLICO' || /correo/i.test(msg || ''));
 }
@@ -621,13 +622,10 @@ function entrarApp(){
   render(); actualizar(true);
 }
 /* PUBLICO debe entrar con nombre, apellido y correo (quedan registrados) */
-function datosVisitante(){ try { return JSON.parse(localStorage.getItem('vuelosComDatos') || '{}'); } catch(e){ return {}; } }
+function limpiarVisitante(){ ['logNombre','logApellido','logCorreo'].forEach(id => document.getElementById(id).value = ''); }
+try { localStorage.removeItem('vuelosComDatos'); } catch(e){}   // borra datos guardados por versiones anteriores
 function mostrarDatosPublico(si){
   document.getElementById('datosPublico').classList.toggle('oculto', !si);
-  if (si){
-    const p = datosVisitante();
-    ['Nombre','Apellido','Correo'].forEach(k => { const el = document.getElementById('log' + k); if (!el.value) el.value = p[k.toLowerCase()] || ''; });
-  }
 }
 document.getElementById('usuario').addEventListener('input', e => mostrarDatosPublico(norm(e.target.value) === 'PUBLICO'));
 document.getElementById('formLogin').addEventListener('input', () => document.getElementById('loginError').textContent = '');
@@ -647,8 +645,8 @@ document.getElementById('formLogin').addEventListener('submit', async e => {
     const recordar = document.getElementById('recordar').checked;
     const dispositivo = window.AppAndroid ? 'App Android' : (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'Navegador del teléfono' : 'Computadora');
     const j = await llamar('login', { usuario:document.getElementById('usuario').value, clave:document.getElementById('clave').value, recordar, ...(publico ? { ...visitante, dispositivo } : {}) }, false);
-    if (publico){ try { localStorage.setItem('vuelosComDatos', JSON.stringify(visitante)); } catch(e2){} }
-    S.ses = { token:j.token, rol:j.rol, nombre:j.nombre };
+    S.ses = { token:j.token, rol:j.rol, nombre:j.nombre, ...(publico ? { visitante } : {}) };
+    limpiarVisitante();
     guardarSesion(S.ses, recordar);
     entrarApp();
   }catch(ex){ err.textContent = ex.message; if (ex.falta === 'correo') mostrarDatosPublico(true); }
@@ -1407,7 +1405,7 @@ let vueloCom = null, filtroCom = 'pend', idCom = '';
 function abrirComentar(v){
   vueloCom = v;
   document.getElementById('comVuelo').innerHTML = `Vuelo del <b>${esc(v.fecha)}</b> a las <b>${esc(v.ini)}</b> · drone <b>${esc(v.drone)}</b> · ${esc(v.plantilla)}${v.lote ? ` · lote ${esc(v.lote)}` : ''} · variación ${pc(calc(v).varReal)}`;
-  let p = {}; try { p = JSON.parse(localStorage.getItem('vuelosComDatos') || '{}'); } catch(e){}
+  const p = (S.ses && S.ses.visitante) || {};
   document.getElementById('comNombre').value = p.nombre || '';
   document.getElementById('comApellido').value = p.apellido || '';
   document.getElementById('comCorreo').value = p.correo || '';
@@ -1429,7 +1427,6 @@ document.getElementById('formComentario').addEventListener('submit', async e => 
   try{
     const v = vueloCom;
     await llamar('comentar', { ...datos, vuelo:{ id:v.id, fecha:v.fecha, hora:v.ini, drone:v.drone, lote:v.lote, plantilla:v.plantilla } });
-    try { localStorage.setItem('vuelosComDatos', JSON.stringify({ nombre:datos.nombre, apellido:datos.apellido, correo:datos.correo })); } catch(e){}
     dlgCom.close(); aviso('Comentario enviado. Cobo lo verá en su panel.', 5000);
   }catch(ex){ err.textContent = 'No se envió: ' + ex.message; }
   b.disabled = false; b.textContent = 'Enviar comentario';
