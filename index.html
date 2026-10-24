@@ -464,6 +464,12 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
   </div>
 </dialog>
 
+<dialog id="dlgDesglose" style="max-width:1100px">
+  <div class="dlg-cab"><h2 id="desTitulo">Vuelos</h2></div>
+  <div class="dlg-cuerpo" id="desCuerpo" style="gap:12px;max-height:80vh"></div>
+  <div class="dlg-pie"><button class="btn verde" type="button" id="btnDesCerrar">Cerrar</button></div>
+</dialog>
+
 <dialog id="dlgAyuda" style="max-width:560px">
   <div class="dlg-cab"><h2 id="ayudaTitulo">¿Cómo se calcula?</h2></div>
   <div class="dlg-cuerpo" id="ayudaCuerpo" style="gap:12px"></div>
@@ -970,11 +976,11 @@ function renderGraficas(){
       ...drones.map(d => ({ label:d, data:suma(catsL, g.f, v => v.drone === d, v => v.litros).map(r2), backgroundColor:degradado(colorDrone(d)), stack:'r', ...barra })),
       { type:'line', label:'Teórico', data:suma(catsL, g.f, () => true, v => calc(v).ltsTeo || 0).map(r2), borderColor:css('--tinta'), backgroundColor:css('--tinta'),
         borderDash:[5,4], borderWidth:2, pointRadius:4, pointHoverRadius:6, tension:.25 }
-    ]}, options:{ ...base, plugins:{ legend:leyenda(), tooltip:tip, totales:{ mostrar:true } }, scales:ejes('Litros') } });
+    ]}, options:{ ...base, ...clicDesglose(catsL, g.f, lab, drones), plugins:{ legend:leyenda(), tooltip:tip, totales:{ mostrar:true } }, scales:ejes('Litros') } });
 
   grafica('gHa', { type:'bar', data:{ labels:catsH.map(lab), datasets:
       drones.map(d => ({ label:d, data:suma(catsH, g.f, v => v.drone === d, v => v.area).map(r2), backgroundColor:degradado(colorDrone(d)), ...barra }))
-    }, options:{ ...base, plugins:{ legend:leyenda(), tooltip:tip, totales:{ mostrar:true } }, scales:ejes('Hectáreas') } });
+    }, options:{ ...base, ...clicDesglose(catsH, g.f, lab, drones), plugins:{ legend:leyenda(), tooltip:tip, totales:{ mostrar:true } }, scales:ejes('Hectáreas') } });
 
   const tol = S.cfg.tol;
 
@@ -988,16 +994,16 @@ function renderGraficas(){
   armarPick('pkVar', 'var', periodosTodos, labP);
   const periodos = periodosTodos.filter(p => !S.ocultas.var.has(p));
   document.getElementById('tituloVarDia').textContent = porSemana ? 'Variación real por semana y drone' : 'Variación real por día y drone';
-  document.getElementById('notaVarDia').textContent = `Variación total de cada drone en cada ${porSemana ? 'semana (lunes a domingo)' : 'día'}: litros reales contra teóricos de todos sus vuelos. La línea blanca es el total y la franja punteada es ±${tol}%.`;
+  document.getElementById('notaVarDia').textContent = `Variación total de cada drone en cada ${porSemana ? 'semana (lunes a domingo)' : 'día'}: litros reales contra teóricos de todos sus vuelos. La línea blanca es el total y la franja punteada es ±${tol}%. Toca una barra para ver sus vuelos.`;
   const varP = (p, d) => { const a = agregado(lista.filter(v => fp(v) === p && (!d || v.drone === d))); return a.var === null ? null : +(a.var*100).toFixed(2); };
   grafica('gVarDia', { type:'bar', data:{ labels:periodos.map(labP), datasets:[
       ...drones.map(d => ({ label:d, data:periodos.map(p => varP(p, d)), backgroundColor:degradado(colorDrone(d)), borderRadius:5, borderSkipped:false, maxBarThickness:34, categoryPercentage:.75, barPercentage:.9 })),
       { type:'line', label:porSemana ? 'Total de la semana' : 'Total del día', data:periodos.map(p => varP(p)), borderColor:css('--tinta'), backgroundColor:css('--tinta'), borderWidth:2, pointRadius:4, tension:.25 },
       { type:'line', label:'', data:periodos.map(()=>tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 },
       { type:'line', label:'', data:periodos.map(()=>-tol), borderColor:css('--tallo'), borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
-    ]}, options:{ ...base,
+    ]}, options:{ ...base, ...clicDesglose(periodos, fp, labP, drones),
       plugins:{ legend:{ ...leyenda(), labels:{ ...leyenda().labels, filter:it => it.text !== '' } },
-        tooltip:{ filter:it => it.dataset.label !== '' && it.raw !== null, callbacks:{ label:it => `${it.dataset.label}: ${f2(it.raw)}%` } } },
+        tooltip:{ filter:it => it.dataset.label !== '' && it.raw !== null, callbacks:{ label:it => `${it.dataset.label}: ${f2(it.raw)}%`, footer:it => it.length ? 'Toca para ver los vuelos' : '' } } },
       scales:{ x:{ ticks:{ color:css('--gris') }, grid:{ display:false } }, y:{ grace:'10%', ticks:{ color:css('--gris'), callback:v => v+'%' }, grid:{ color:css('--linea') }, border:{ display:false } } } } });
 
   renderPersona();
@@ -1024,6 +1030,69 @@ function renderGraficas(){
       obsNombres.map(o => ({ label:o, data:dronesObs.map(d => listaObs.filter(v => v.drone === d && calc(v).obs === o).length), backgroundColor:degradado(colObs[o]), ...barra }))
     }, options:{ ...base, plugins:{ legend:leyenda(), totales:{ mostrar:true, fmt:x => x } }, scales:ejes('Vuelos', { ticks:{ color:css('--gris'), precision:0 } }) } });
 }
+
+/* Al tocar una barra: desglose de los vuelos de ese drone en ese día/semana/grupo */
+function clicDesglose(cats, f, lab, drones){
+  return {
+    onHover: (e, els) => { if (e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+    onClick: (e, els, chart) => {
+      if (!els.length) return;
+      const el = els[0], ds = chart.data.datasets[el.datasetIndex], cat = cats[el.index];
+      if (!ds || ds.label === '' || cat === undefined) return;
+      const drone = drones.includes(ds.label) ? ds.label : null;
+      const vs = visibles().filter(v => f(v) === cat && (!drone || v.drone === drone));
+      abrirDesglose(`${drone || 'Todos los drones'} · ${lab(cat)}`, vs);
+    }
+  };
+}
+const dlgDes = document.getElementById('dlgDesglose');
+function abrirDesglose(titulo, vs){
+  const a = agregado(vs), tol = S.cfg.tol, admin = esAdmin();
+  const conTasa = vs.filter(v => v.tasa), difTotal = conTasa.reduce((s,v) => s + calc(v).dif, 0), sumaAbs = conTasa.reduce((s,v) => s + Math.abs(calc(v).dif), 0);
+  const filas = [...vs].sort((x,y) => Math.abs(calc(y).dif || 0) - Math.abs(calc(x).dif || 0));
+  // Qué vuelos explican la diferencia: los que empujan en el mismo sentido que el total
+  const mismos = filas.filter(v => v.tasa && Math.sign(calc(v).dif) === Math.sign(difTotal) && calc(v).dif !== 0);
+  let acum = 0; const clave = [];
+  for (const v of mismos){ clave.push(v); acum += calc(v).dif; if (Math.abs(acum) >= Math.abs(difTotal)) break; if (clave.length >= 5) break; }
+  const sentido = difTotal > 0 ? 'de más' : 'de menos';
+  const fuera = vs.filter(v => calc(v).estado === JUSTIFICAR);
+  let explica = '';
+  if (conTasa.length && Math.abs(difTotal) >= 0.005){
+    explica = `En total se aplicaron <b>${f2(Math.abs(difTotal))} L ${sentido}</b> (${pc(a.var)} contra lo teórico). `;
+    if (clave.length) explica += `La mayor parte viene de ${clave.length === 1 ? 'un vuelo' : `${clave.length} vuelos`}: `
+      + clave.map(v => `<b>${esc(v.ini.slice(0,5))}</b> (${calc(v).dif > 0 ? '+' : ''}${f2(calc(v).dif)} L, ${pc(calc(v).varReal)})`).join(', ')
+      + (clave.length === 1 ? `, que por sí solo suma ${f2(Math.abs(acum))} L ${sentido}.` : `, que juntos suman ${f2(Math.abs(acum))} L ${sentido}.`);
+    explica += fuera.length ? ` ${fuera.length} de ${vs.length} vuelos quedaron fuera de ±${tol}%.` : ` Todos los vuelos quedaron dentro de ±${tol}%.`;
+  } else explica = 'Los litros reales coinciden con los teóricos.';
+  const claveIds = new Set(clave.map(v => v.id));
+  document.getElementById('desTitulo').textContent = titulo;
+  document.getElementById('desCuerpo').innerHTML = `
+    <div class="resumen" style="margin:0">
+      <div class="dato"><b>${a.n}</b><span>vuelos</span></div>
+      <div class="dato"><b>${f2(a.area)}</b><span>hectáreas</span></div>
+      <div class="dato"><b>${f2(a.teo)}</b><span>litros teóricos</span></div>
+      <div class="dato"><b>${f2(a.litros)}</b><span>litros reales</span></div>
+      <div class="dato"><b class="${clase(difTotal)}">${difTotal > 0 ? '+' : ''}${f2(difTotal)}</b><span>litros de diferencia</span></div>
+      <div class="dato"><b class="${clase(a.var)}">${pc(a.var)}</b><span>variación total</span></div>
+    </div>
+    <p style="margin:0">${explica}</p>
+    <p class="nota" style="margin:0">Ordenados de mayor a menor diferencia en litros. «Peso» es qué parte de toda la diferencia corresponde a cada vuelo. Los marcados en dorado son los que más explican la variación.</p>
+    <div class="tabla-scroll" style="max-height:52vh"><table><thead><tr>
+      <th>Hora</th>${new Set(vs.map(v => v.fecha)).size > 1 ? '<th>Fecha</th>' : ''}${new Set(vs.map(v => v.drone)).size > 1 ? '<th>Drone</th>' : ''}<th>Piloto</th><th>Plantilla</th><th>Lote</th>
+      <th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th><th class="num" title="Qué parte de toda la diferencia en litros (de más y de menos) corresponde a este vuelo">Peso</th><th class="num">Real aplicado</th><th class="num">Var real</th><th>Estado</th><th>Justificación</th><th>Supervisor</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+      ${filas.map(v => { const r = calc(v), ap = sumaAbs ? Math.abs(r.dif) / sumaAbs : null;
+        return `<tr class="${claveIds.has(v.id) ? 'foco' : ''}"><td>${esc(v.ini.slice(0,5))}</td>${new Set(vs.map(x => x.fecha)).size > 1 ? `<td>${esc(v.fecha)}</td>` : ''}${new Set(vs.map(x => x.drone)).size > 1 ? `<td><b>${esc(v.drone)}</b></td>` : ''}
+          <td>${esc(v.piloto || '–')}</td><td>${esc(v.plantilla)}</td><td>${esc(v.lote || '–')}</td>
+          <td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${r.dif > 0 ? '+' : ''}${f2(r.dif)}</td>
+          <td class="num">${ap === null || !v.tasa ? '–' : Math.round(ap * 100) + '%'}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro ? 'ok' : clase(r.varReal)}">${pc(r.varReal)}</td>
+          <td>${r.estado === BUENO ? '<span class="pill b">Bueno</span>' : r.estado === JUSTIFICAR ? (v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>') : '<span class="pill m">Sin plantilla</span>'}</td>
+          <td>${esc(r.estado === JUSTIFICAR ? (r.justTexto || 'Pendiente') : r.just || '–')}</td><td>${esc(v.sup || '–')}</td>
+          ${admin ? `<td><button type="button" class="btn chico" data-ir="${esc(v.id)}">Ir al vuelo</button></td>` : ''}</tr>`; }).join('')}
+    </tbody></table></div>`;
+  document.querySelectorAll('#desCuerpo [data-ir]').forEach(b => b.onclick = () => { dlgDes.close(); verVuelo(b.dataset.ir); });
+  dlgDes.showModal();
+}
+document.getElementById('btnDesCerrar').onclick = () => dlgDes.close();
 
 /* Resumen por piloto o supervisor (sirve también para el reporte) */
 function resumenPersonas(lista, clave){
@@ -1483,7 +1552,7 @@ function pintarComentarios(){
   });
 }
 function verVuelo(id){
-  dlgComs.close();
+  if (dlgComs.open) dlgComs.close();
   if (!todos().some(v => v.id === id)){ aviso('Ese vuelo no está en BOCETO.'); return; }
   Object.assign(S.F, { desde:'', hasta:'', piloto:'', sup:'', lote:'', estado:'', obs:'' }); S.F.drones.clear(); S.F.plantillas.clear();
   S.T.drone = ''; S.T.estado = ''; S.foco = id;
