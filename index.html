@@ -68,7 +68,7 @@ header.top::after{content:"";display:block;height:8px;background:repeating-linea
 .login-caja header p{margin:2px 0 0;opacity:.85;font-size:14px}
 .login-caja form{padding:22px 24px 24px;display:grid;gap:14px}
 .login-caja label{font-weight:600;display:block;margin-bottom:4px}
-.login-caja input[type=text],.login-caja input[type=password]{width:100%;border:1px solid var(--linea);border-radius:6px;padding:10px;background:var(--papel)}
+.login-caja input[type=text],.login-caja input[type=password],.login-caja input[type=email]{width:100%;border:1px solid var(--linea);border-radius:6px;padding:10px;background:var(--papel)}
 .login-caja .recordar{display:flex;gap:8px;align-items:center;font-weight:400;margin:0}
 .login-caja .descarga-app{text-align:center;font-size:14px;color:var(--caña);font-weight:600}
 body.en-app .descarga-app{display:none}
@@ -283,6 +283,14 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     <form id="formLogin" autocomplete="on">
       <div><label for="usuario">Usuario</label><input type="text" id="usuario" autocomplete="username" autocapitalize="characters" required></div>
       <div><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password" required></div>
+      <div id="datosPublico" class="oculto" style="display:grid;gap:14px">
+        <div class="dos-col">
+          <div><label for="logNombre">Nombre</label><input type="text" id="logNombre" maxlength="60" autocomplete="given-name"></div>
+          <div><label for="logApellido">Apellido</label><input type="text" id="logApellido" maxlength="60" autocomplete="family-name"></div>
+        </div>
+        <div><label for="logCorreo">Correo electrónico</label><input type="email" id="logCorreo" maxlength="120" autocomplete="email"></div>
+        <p class="nota" style="margin:-6px 0 0">Tu nombre y correo quedan registrados cada vez que consultas el dashboard.</p>
+      </div>
       <label class="recordar"><input type="checkbox" id="recordar"> Mantener la sesión en este equipo</label>
       <p class="error" id="loginError" role="alert"></p>
       <button class="btn verde" type="submit" id="btnEntrar">Entrar</button>
@@ -301,6 +309,7 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     </div>
     <div class="acciones">
       <span class="quien" id="quien"></span>
+      <button class="btn solo-admin" id="btnAccesos" type="button">Accesos</button>
       <button class="btn solo-admin" id="btnComentarios" type="button">Comentarios<span class="badge oculto" id="badgeCom"></span></button>
       <button class="btn solo-admin" id="btnReporte" type="button">Generar reporte</button>
       <button class="btn prim solo-admin" id="btnActualizar" type="button">Actualizar</button>
@@ -450,6 +459,19 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
   </div>
 </dialog>
 
+<dialog id="dlgAccesos" style="max-width:900px">
+  <div class="dlg-cab"><h2>Quién consulta el dashboard</h2></div>
+  <div class="dlg-cuerpo" style="gap:12px">
+    <p class="nota" style="margin:0">Cada vez que alguien entra con el usuario PUBLICO queda registrado su nombre y correo en la pestaña <b>ACCESOS</b> de BOCETO.</p>
+    <input type="search" id="accBuscar" placeholder="Buscar por nombre o correo" style="width:100%">
+    <h3 style="font-size:18px;margin:4px 0 0">Por persona</h3>
+    <div class="tabla-scroll" style="max-height:260px"><table id="accPersonas"></table></div>
+    <h3 style="font-size:18px;margin:4px 0 0">Últimos accesos</h3>
+    <div class="tabla-scroll" style="max-height:300px"><table id="accLista"></table></div>
+  </div>
+  <div class="dlg-pie"><button class="btn" type="button" id="btnAccCerrar">Cerrar</button></div>
+</dialog>
+
 <dialog id="dlgComentarios">
   <div class="dlg-cab"><h2>Comentarios del usuario PUBLICO</h2></div>
   <div class="dlg-cuerpo" style="gap:12px">
@@ -505,7 +527,7 @@ const S = {
   ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
   cfg:{...DEF}, listas:{ just:[], sup:[], pil:[] }, conectado:null, error:'', grupo:'dia',
   grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set(), obs:new Set(), obsDr:new Set(), obsSup:new Set() }, asig:{ fecha:'', drones:new Set() },
-  comentarios:[], foco:'', soloSinPiloto:false,
+  comentarios:[], accesos:[], foco:'', soloSinPiloto:false,
   F:{ desde:'', hasta:'', plantillas:new Set(), piloto:'', sup:'', lote:'', estado:'', obs:'', drones:new Set() },
   T:{ drone:'', estado:'' }
 };
@@ -589,6 +611,7 @@ function cerrarSesion(msg){
   document.getElementById('login').classList.remove('oculto');
   document.getElementById('clave').value = '';
   document.getElementById('loginError').textContent = msg || '';
+  mostrarDatosPublico(norm(document.getElementById('usuario').value) === 'PUBLICO' || /correo/i.test(msg || ''));
 }
 function entrarApp(){
   document.body.classList.toggle('lector', !esAdmin());
@@ -597,17 +620,38 @@ function entrarApp(){
   document.getElementById('app').classList.remove('oculto');
   render(); actualizar(true);
 }
+/* PUBLICO debe entrar con nombre, apellido y correo (quedan registrados) */
+function datosVisitante(){ try { return JSON.parse(localStorage.getItem('vuelosComDatos') || '{}'); } catch(e){ return {}; } }
+function mostrarDatosPublico(si){
+  document.getElementById('datosPublico').classList.toggle('oculto', !si);
+  if (si){
+    const p = datosVisitante();
+    ['Nombre','Apellido','Correo'].forEach(k => { const el = document.getElementById('log' + k); if (!el.value) el.value = p[k.toLowerCase()] || ''; });
+  }
+}
+document.getElementById('usuario').addEventListener('input', e => mostrarDatosPublico(norm(e.target.value) === 'PUBLICO'));
+document.getElementById('formLogin').addEventListener('input', () => document.getElementById('loginError').textContent = '');
 document.getElementById('formLogin').addEventListener('submit', async e => {
   e.preventDefault();
   const b = document.getElementById('btnEntrar'), err = document.getElementById('loginError');
+  const publico = norm(document.getElementById('usuario').value) === 'PUBLICO';
+  const v = id => document.getElementById(id).value.trim();
+  const visitante = { nombre:v('logNombre'), apellido:v('logApellido'), correo:v('logCorreo') };
+  if (publico){
+    mostrarDatosPublico(true);
+    if (!visitante.nombre || !visitante.apellido){ err.textContent = 'Escribe tu nombre y apellido.'; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(visitante.correo)){ err.textContent = 'Escribe un correo electrónico válido.'; return; }
+  }
   b.disabled = true; b.textContent = 'Entrando…'; err.textContent = '';
   try{
     const recordar = document.getElementById('recordar').checked;
-    const j = await llamar('login', { usuario:document.getElementById('usuario').value, clave:document.getElementById('clave').value, recordar }, false);
+    const dispositivo = window.AppAndroid ? 'App Android' : (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'Navegador del teléfono' : 'Computadora');
+    const j = await llamar('login', { usuario:document.getElementById('usuario').value, clave:document.getElementById('clave').value, recordar, ...(publico ? { ...visitante, dispositivo } : {}) }, false);
+    if (publico){ try { localStorage.setItem('vuelosComDatos', JSON.stringify(visitante)); } catch(e2){} }
     S.ses = { token:j.token, rol:j.rol, nombre:j.nombre };
     guardarSesion(S.ses, recordar);
     entrarApp();
-  }catch(ex){ err.textContent = ex.message; }
+  }catch(ex){ err.textContent = ex.message; if (ex.falta === 'correo') mostrarDatosPublico(true); }
   b.disabled = false; b.textContent = 'Entrar';
 });
 document.getElementById('btnSalir').onclick = () => {
@@ -626,7 +670,7 @@ async function llamar(accion, cuerpo, conToken = true){
   if (!j.ok){
     const m = String(j.error || 'Error en el Apps Script');
     if (m.startsWith('SESION:')){ cerrarSesion(m.replace('SESION:','').trim()); throw new Error(m.replace('SESION:','').trim()); }
-    throw new Error(m);
+    const error = new Error(m); error.falta = j.falta; throw error;
   }
   return j;
 }
@@ -1189,6 +1233,7 @@ async function actualizar(silencioso){
     if (j.cfg) S.cfg = { ...DEF, ...j.cfg };
     if (j.listas) S.listas = { just:j.listas.just || [], justHoja:j.listas.justHoja || '', sup:j.listas.sup || [], pil:j.listas.pil || [] };
     S.comentarios = Array.isArray(j.comentarios) ? j.comentarios : [];
+    S.accesos = Array.isArray(j.accesos) ? j.accesos : [];
     S.guardados = desdeHoja(j.headers || [], j.rows || []);
     S.conectado = true; S.error = '';
     const ids = new Set(S.guardados.map(v => v.id)), antes = S.pendientes.length;
@@ -1439,6 +1484,28 @@ function verVuelo(id){
 }
 document.getElementById('btnComentarios').onclick = () => abrirComentarios('');
 document.getElementById('btnComCerrar').onclick = () => dlgComs.close();
+
+/* ============ Accesos del usuario PUBLICO ============ */
+const dlgAcc = document.getElementById('dlgAccesos');
+function pintarAccesos(){
+  const q = norm(document.getElementById('accBuscar').value);
+  const lista = S.accesos.filter(a => !q || norm(`${a.nombre} ${a.apellido} ${a.correo}`).includes(q));
+  const per = new Map();
+  lista.forEach(a => {
+    const k = (a.correo || '').toLowerCase();
+    if (!per.has(k)) per.set(k, { nombre:`${a.nombre} ${a.apellido}`.trim(), correo:a.correo, veces:0, ultima:a.fecha, disp:new Set() });
+    const p = per.get(k); p.veces++; if (a.dispositivo) p.disp.add(a.dispositivo);
+  });
+  const filas = [...per.values()].sort((x,y) => y.ultima.localeCompare(x.ultima));
+  document.getElementById('accPersonas').innerHTML = `<thead><tr><th>Nombre</th><th>Correo</th><th class="num">Veces</th><th>Última vez</th><th>Dispositivo</th></tr></thead><tbody>`
+    + (filas.length ? filas.map(p => `<tr><td><b>${esc(p.nombre)}</b></td><td><a href="mailto:${esc(p.correo)}" style="color:var(--caña)">${esc(p.correo)}</a></td><td class="num">${p.veces}</td><td>${esc(p.ultima)}</td><td>${esc([...p.disp].join(', '))}</td></tr>`).join('')
+      : `<tr><td colspan="5" class="tenue">${S.accesos.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay accesos registrados.'}</td></tr>`) + '</tbody>';
+  document.getElementById('accLista').innerHTML = `<thead><tr><th>Fecha y hora</th><th>Nombre</th><th>Correo</th><th>Qué hizo</th><th>Dispositivo</th></tr></thead><tbody>`
+    + lista.slice(0, 300).map(a => `<tr><td>${esc(a.fecha)}</td><td>${esc(a.nombre)} ${esc(a.apellido)}</td><td>${esc(a.correo)}</td><td>${esc(a.accion)}</td><td>${esc(a.dispositivo)}</td></tr>`).join('') + '</tbody>';
+}
+document.getElementById('btnAccesos').onclick = () => { document.getElementById('accBuscar').value = ''; pintarAccesos(); dlgAcc.showModal(); };
+document.getElementById('accBuscar').addEventListener('input', pintarAccesos);
+document.getElementById('btnAccCerrar').onclick = () => dlgAcc.close();
 
 /* ============ Reporte semanal ============ */
 const RC = { tinta:'#1d2419', gris:'#6c7466', linea:'#e3e8dc', bien:'#2f7d3e', alerta:'#c0392b', aviso:'#b7791f', tallo:'#c9a227' };
