@@ -1245,7 +1245,7 @@ function renderTabla(){
   const nCom = {}; if (admin) S.comentarios.forEach(c => { if (c.estado !== 'Resuelto') nCom[c.id] = (nCom[c.id] || 0) + 1; });
   let h = `<thead><tr>
     <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th class="edit">Piloto</th><th class="edit">Plantilla</th>
-    <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th>
+    <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos <button type="button" class="ayuda-btn" data-ayuda="teo" aria-label="¿Cómo se calcula los litros teóricos?">?</button></th><th class="num">L reales</th><th class="num">L dif <button type="button" class="ayuda-btn" data-ayuda="dif" aria-label="¿Cómo se calcula la diferencia de litros?">?</button></th>
     <th class="num fijo">Porcentaje de var <button type="button" class="ayuda-btn" data-ayuda="pct" aria-label="¿Cómo se calcula el porcentaje de var?">?</button></th><th class="num fijo">Real aplicado <button type="button" class="ayuda-btn" data-ayuda="real" aria-label="¿Cómo se calcula el real aplicado?">?</button></th><th class="num fijo">Var real aplicado <button type="button" class="ayuda-btn" data-ayuda="var" aria-label="¿Cómo se calcula la var real aplicada?">?</button></th>
     <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th>${admin ? '' : '<th>Comentar</th>'}</tr></thead><tbody>`;
   const lista = todos(), filas = enTabla();
@@ -1572,6 +1572,14 @@ function abrirAyuda(cual){
   const n4 = x => x.toLocaleString('es-GT', { minimumFractionDigits:2, maximumFractionDigits:4 }), teoR = v ? r2(r.ltsTeo) : 0, realR = v ? r2(r.real) : 0;
   const ej = v ? `Ejemplo con el vuelo de <b>${esc(v.drone)}</b> del ${esc(v.fecha)} a las ${esc(v.ini.slice(0,5))} (${esc(v.plantilla)}):` : '';
   const T = {
+    teo: { t:'L teóricos',
+      f:'Área aplicada (ha) × L/ha teórico de la plantilla',
+      d:'Son los litros que el drone debió aplicar en ese vuelo según la plantilla (Team Name). Si la plantilla está mal puesta, este valor sale mal; por eso Cobo puede corregir la plantilla.',
+      e: v ? `<p class="ejemplo">${ej}<br>${n4(v.area)} ha × ${n(v.tasa)} L/ha = <b>${n(r.ltsTeo)} L</b></p>` : '' },
+    dif: { t:'L dif',
+      f:'Litros reales − Litros teóricos',
+      d:'Son los litros de más o de menos que aplicó el drone en ese vuelo. Positivo (rojo) es que aplicó de más y negativo (azul) que aplicó de menos. Los litros reales vienen del Excel de DJI (Total Amount).',
+      e: v ? `<p class="ejemplo">${ej}<br>Litros teóricos = ${n4(v.area)} ha × ${n(v.tasa)} L/ha = ${n(r.ltsTeo)} L<br>${n(v.litros)} − ${n(r.ltsTeo)} = <b>${r.dif > 0 ? '+' : ''}${n(r.dif)} L</b></p>` : '' },
     pct: { t:'Porcentaje de var',
       f:'(Litros reales − Litros teóricos) ÷ Litros reales × 100',
       d:'Dice qué parte de los litros que realmente salieron del drone fue de más o de menos respecto a lo que se debía aplicar. Los litros teóricos son el área aplicada por los litros por hectárea de la plantilla.',
