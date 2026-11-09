@@ -187,6 +187,11 @@ button.pill{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
 .formula{font-family:"Barlow Condensed",sans-serif;font-size:20px;background:color-mix(in srgb,var(--tallo) 12%,var(--panel));border:1px solid var(--linea);border-radius:8px;padding:10px 14px;margin:0}
 .ejemplo{border-left:3px solid var(--tallo);padding:4px 0 4px 12px;margin:0;font-size:14.5px}
 .ejemplo b{font-variant-numeric:tabular-nums}
+.btn-foto{white-space:nowrap}
+.btn-foto.con{border-color:var(--tallo)}
+.foto-zona{border:2px dashed var(--linea);border-radius:10px;min-height:180px;display:grid;place-items:center;text-align:center;padding:14px;color:var(--gris);background:var(--papel);outline:none}
+.foto-zona.sobre,.foto-zona:focus{border-color:var(--tallo)}
+.foto-zona img{max-width:100%;max-height:60vh;border-radius:6px;display:block;margin:auto}
 .coment-lista{display:grid;gap:10px}
 .coment{border:1px solid var(--linea);border-radius:8px;padding:10px 12px}
 .coment.pend{border-left:4px solid var(--alerta)}
@@ -464,6 +469,22 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
   </div>
 </dialog>
 
+<dialog id="dlgFoto" style="max-width:820px">
+  <div class="dlg-cab"><h2 id="fotoTitulo">Foto del vuelo</h2></div>
+  <div class="dlg-cuerpo" style="gap:12px">
+    <p class="nota" id="fotoInfo" style="margin:0"></p>
+    <div class="foto-zona" id="fotoZona" tabindex="0" aria-label="Foto del vuelo"></div>
+    <div class="solo-admin" id="fotoAcciones" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn prim" type="button" id="btnFotoElegir">Elegir imagen</button>
+      <button class="btn verde" type="button" id="btnFotoGuardar" disabled>Guardar foto</button>
+      <button class="btn" type="button" id="btnFotoQuitar">Quitar foto</button>
+      <span class="nota" id="fotoEstado" style="margin:0"></span>
+      <input type="file" id="fotoArchivo" accept="image/*" hidden>
+    </div>
+  </div>
+  <div class="dlg-pie"><button class="btn" type="button" id="btnFotoCerrar">Cerrar</button></div>
+</dialog>
+
 <dialog id="dlgDesglose" style="max-width:1100px">
   <div class="dlg-cab"><h2 id="desTitulo">Vuelos</h2></div>
   <div class="dlg-cuerpo" id="desCuerpo" style="gap:12px;max-height:80vh"></div>
@@ -535,7 +556,7 @@ const COLUMNAS = [
   'FECHA','HORA INICIO','HORA FIN','DURACION','DRONE','PILOTO','UBICACION','PLANTILLA',
   'LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES',
   'LTS DIF','PORCENTAJE DE VAR','REAL APLICADO','JUSTIFICACION','VAR REAL APLICADO',
-  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO'
+  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO','EVIDENCIA'
 ];
 const COLORES_DRONE = ['#e0a33c','#5fa8e0','#7cc47f','#d86a9a','#a58be0','#e07a4a','#4ec1b5','#c9c95a','#9aa7b8','#ef8f8f'];
 const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla';
@@ -675,11 +696,11 @@ document.getElementById('btnSalir').onclick = () => {
 };
 
 /* ============ Comunicación ============ */
-async function llamar(accion, cuerpo, conToken = true){
+async function llamar(accion, cuerpo, conToken = true, extra = ''){
   let res;
   try{
     if (cuerpo) res = await fetch(URL_SCRIPT, { method:'POST', body:JSON.stringify({ accion, ...(conToken ? { token:S.ses?.token } : {}), ...cuerpo }) });
-    else res = await fetch(`${URL_SCRIPT}?accion=${accion}&token=${encodeURIComponent(S.ses?.token || '')}`);
+    else res = await fetch(`${URL_SCRIPT}?accion=${accion}&token=${encodeURIComponent(S.ses?.token || '')}${extra}`);
   }catch(e){ throw new Error('No hay conexión con BOCETO. Revisa tu internet o que el Apps Script tenga acceso "Cualquier usuario".'); }
   let j; try { j = await res.json(); } catch(e){ throw new Error('El Apps Script no respondió. Revisa la implementación.'); }
   if (!j.ok){
@@ -724,7 +745,7 @@ function leerExcelDJI(buf){
     const serie = col.serie >= 0 ? String(f[col.serie]).trim() : '';
     out.push({ id: serie || `${drone}_${t.fecha}_${t.ini}_${idx}`, fecha:t.fecha, ini:t.ini, fin:t.fin || sumarDuracion(t.ini, dur), dur,
       drone, piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '', ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
-      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', nuevo:true, cambio:false, ver:0 });
+      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', evid:'', nuevo:true, cambio:false, ver:0 });
   });
   if (!out.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
   return out;
@@ -743,7 +764,7 @@ function desdeHoja(headers, rows){
       area:num(g(r,'AREA (HA)')) || 0, litros:num(g(r,'LTS REALES')) || 0,
       nJust:String(g(r,'OBSERVACION') ?? '').trim(), justTxt:String(g(r,'JUSTIFICACION') ?? '').trim(),
       lote:String(g(r,'LOTE') ?? '').trim(), sup:String(g(r,'SUPERVISOR') ?? '').trim(),
-      archivo:String(g(r,'ARCHIVO')), nuevo:false, cambio:false, ver:0 };
+      archivo:String(g(r,'ARCHIVO')), evid:String(g(r,'EVIDENCIA') ?? '').trim(), nuevo:false, cambio:false, ver:0 };
   }).filter(v => v.area > 0);
 }
 
@@ -1079,7 +1100,7 @@ function abrirDesglose(titulo, vs){
     <p class="nota" style="margin:0">Ordenados de mayor a menor diferencia en litros. «Peso» es qué parte de toda la diferencia corresponde a cada vuelo. Los marcados en dorado son los que más explican la variación.</p>
     <div class="tabla-scroll" style="max-height:52vh"><table><thead><tr>
       <th>Hora</th>${new Set(vs.map(v => v.fecha)).size > 1 ? '<th>Fecha</th>' : ''}${new Set(vs.map(v => v.drone)).size > 1 ? '<th>Drone</th>' : ''}<th>Piloto</th><th>Plantilla</th><th>Lote</th>
-      <th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th><th class="num" title="Qué parte de toda la diferencia en litros (de más y de menos) corresponde a este vuelo">Peso</th><th class="num">Real aplicado</th><th class="num">Var real</th><th>Estado</th><th>Justificación</th><th>Supervisor</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+      <th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th><th class="num" title="Qué parte de toda la diferencia en litros (de más y de menos) corresponde a este vuelo">Peso</th><th class="num">Real aplicado</th><th class="num">Var real</th><th>Estado</th><th>Justificación</th><th>Supervisor</th><th>Foto</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
       ${filas.map(v => { const r = calc(v), ap = sumaAbs ? Math.abs(r.dif) / sumaAbs : null;
         return `<tr class="${claveIds.has(v.id) ? 'foco' : ''}"><td>${esc(v.ini.slice(0,5))}</td>${new Set(vs.map(x => x.fecha)).size > 1 ? `<td>${esc(v.fecha)}</td>` : ''}${new Set(vs.map(x => x.drone)).size > 1 ? `<td><b>${esc(v.drone)}</b></td>` : ''}
           <td>${esc(v.piloto || '–')}</td><td>${esc(v.plantilla)}</td><td>${esc(v.lote || '–')}</td>
@@ -1087,9 +1108,11 @@ function abrirDesglose(titulo, vs){
           <td class="num">${ap === null || !v.tasa ? '–' : Math.round(ap * 100) + '%'}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro ? 'ok' : clase(r.varReal)}">${pc(r.varReal)}</td>
           <td>${r.estado === BUENO ? '<span class="pill b">Bueno</span>' : r.estado === JUSTIFICAR ? (v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>') : '<span class="pill m">Sin plantilla</span>'}</td>
           <td>${esc(r.estado === JUSTIFICAR ? (r.justTexto || 'Pendiente') : r.just || '–')}</td><td>${esc(v.sup || '–')}</td>
+          <td>${v.evid ? `<button type="button" class="btn chico btn-foto con" data-dfoto="${esc(v.id)}">📷 Ver</button>` : '<span class="tenue">–</span>'}</td>
           ${admin ? `<td><button type="button" class="btn chico" data-ir="${esc(v.id)}">Ir al vuelo</button></td>` : ''}</tr>`; }).join('')}
     </tbody></table></div>`;
   document.querySelectorAll('#desCuerpo [data-ir]').forEach(b => b.onclick = () => { dlgDes.close(); verVuelo(b.dataset.ir); });
+  document.querySelectorAll('#desCuerpo [data-dfoto]').forEach(b => b.onclick = () => abrirFoto(todos().find(v => v.id === b.dataset.dfoto)));
   dlgDes.showModal();
 }
 document.getElementById('btnDesCerrar').onclick = () => dlgDes.close();
@@ -1247,7 +1270,7 @@ function renderTabla(){
     <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th class="edit">Piloto</th><th class="edit">Plantilla</th>
     <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos <button type="button" class="ayuda-btn" data-ayuda="teo" aria-label="¿Cómo se calcula los litros teóricos?">?</button></th><th class="num">L reales</th><th class="num">L dif <button type="button" class="ayuda-btn" data-ayuda="dif" aria-label="¿Cómo se calcula la diferencia de litros?">?</button></th>
     <th class="num fijo">Porcentaje de var <button type="button" class="ayuda-btn" data-ayuda="pct" aria-label="¿Cómo se calcula el porcentaje de var?">?</button></th><th class="num fijo">Real aplicado <button type="button" class="ayuda-btn" data-ayuda="real" aria-label="¿Cómo se calcula el real aplicado?">?</button></th><th class="num fijo">Var real aplicado <button type="button" class="ayuda-btn" data-ayuda="var" aria-label="¿Cómo se calcula la var real aplicada?">?</button></th>
-    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th>${admin ? '' : '<th>Comentar</th>'}</tr></thead><tbody>`;
+    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th><th>Foto</th>${admin ? '' : '<th>Comentar</th>'}</tr></thead><tbody>`;
   const lista = todos(), filas = enTabla();
   filas.forEach(v => {
     const r = calc(v), i = lista.indexOf(v), toca = r.estado === JUSTIFICAR;
@@ -1263,13 +1286,14 @@ function renderTabla(){
       <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${cPil}</td><td>${admin ? `<select class="plant" data-i="${i}" data-k="plantilla" aria-label="Plantilla">${opcP(v.plantilla)}</select>` : esc(v.plantilla)}</td>
       <td class="num">${v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
       <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
-      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td>${admin ? '' : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
+      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td><td>${celdaFoto(v, i, toca, admin)}</td>${admin ? '' : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
   });
   const t = document.getElementById('tablaVuelos');
   t.innerHTML = h + '</tbody>';
   const aJ = filas.filter(v => calc(v).estado === JUSTIFICAR).length;
   document.getElementById('tConteo').textContent = `${filas.length} vuelos · ${filas.length - aJ} Bueno · ${aJ} Justificar`;
   t.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => abrirAyuda(b.dataset.ayuda));
+  t.querySelectorAll('[data-foto]').forEach(b => b.onclick = () => abrirFoto(lista[+b.dataset.foto]));
   if (!admin){
     t.querySelectorAll('[data-c]').forEach(b => b.onclick = () => abrirComentar(lista[+b.dataset.c]));
     return;
@@ -1300,7 +1324,7 @@ function fila(v){
   return [ v.fecha, v.ini, v.fin, v.dur, v.drone, v.piloto, v.ubic, v.plantilla,
     v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
     red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
-    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo ];
+    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo, v.evid || '' ];
 }
 
 async function actualizar(silencioso){
@@ -1562,6 +1586,89 @@ function verVuelo(id){
 }
 document.getElementById('btnComentarios').onclick = () => abrirComentarios('');
 document.getElementById('btnComCerrar').onclick = () => dlgComs.close();
+
+/* ============ Fotos (evidencia) de los vuelos ============ */
+const dlgFoto = document.getElementById('dlgFoto'), fotosCache = {};
+let fotoVuelo = null, fotoNueva = null;
+function celdaFoto(v, i, toca, admin){
+  if (v.evid) return `<button type="button" class="btn chico btn-foto con" data-foto="${i}">📷 Ver</button>`;
+  if (admin && toca) return `<button type="button" class="btn chico btn-foto" data-foto="${i}">📷 Agregar</button>`;
+  return '<span class="tenue">–</span>';
+}
+function infoVuelo(v){ const r = calc(v); return `Vuelo de <b>${esc(v.drone)}</b> del ${esc(v.fecha)} a las ${esc(v.ini.slice(0,5))} · ${esc(v.plantilla)}${v.lote ? ` · lote ${esc(v.lote)}` : ''} · variación ${pc(r.varReal)}${r.justTexto ? ` · ${esc(r.justTexto)}` : ''}`; }
+async function abrirFoto(v){
+  if (!v) return;
+  fotoVuelo = v; fotoNueva = null;
+  const admin = esAdmin(), zona = document.getElementById('fotoZona');
+  document.getElementById('fotoTitulo').textContent = v.evid ? 'Foto del vuelo' : 'Agregar foto del vuelo';
+  document.getElementById('fotoInfo').innerHTML = infoVuelo(v);
+  document.getElementById('fotoEstado').textContent = '';
+  document.getElementById('btnFotoGuardar').disabled = true;
+  document.getElementById('btnFotoQuitar').classList.toggle('oculto', !v.evid);
+  const vacio = admin ? (v.nuevo ? 'Primero guarda el Excel nuevo en BOCETO; después podrás agregar la foto.' : 'Pega aquí la captura con <b>Ctrl + V</b>, arrástrala o toca <b>Elegir imagen</b>.') : 'Este vuelo no tiene foto.';
+  document.getElementById('btnFotoElegir').disabled = !!v.nuevo;
+  dlgFoto.showModal();
+  if (!v.evid){ zona.innerHTML = `<div>${vacio}</div>`; if (admin && !v.nuevo) zona.focus(); return; }
+  if (fotosCache[v.evid]){ zona.innerHTML = `<img src="${fotosCache[v.evid]}" alt="Foto del vuelo">`; return; }
+  zona.innerHTML = '<div>Cargando foto…</div>';
+  try{
+    const j = await llamar('foto', null, true, '&id=' + encodeURIComponent(v.evid));
+    fotosCache[v.evid] = `data:${j.mime};base64,${j.data}`;
+    if (fotoVuelo === v && !fotoNueva) zona.innerHTML = `<img src="${fotosCache[v.evid]}" alt="Foto del vuelo">`;
+  }catch(e){ zona.innerHTML = `<div>No se pudo cargar la foto: ${esc(e.message)}</div>`; }
+}
+/* Achica la imagen (máx. 1600 px) para que suba rápido */
+function prepararImagen(file){
+  return new Promise((ok, mal) => {
+    if (!file || !/^image\//.test(file.type)){ mal(new Error('El archivo no es una imagen.')); return; }
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('No se pudo leer la imagen.')); };
+    img.src = url;
+  });
+}
+async function tomarImagen(file){
+  if (!esAdmin() || !fotoVuelo || fotoVuelo.nuevo) return;
+  try{
+    fotoNueva = await prepararImagen(file);
+    document.getElementById('fotoZona').innerHTML = `<img src="${fotoNueva}" alt="Foto nueva">`;
+    document.getElementById('btnFotoGuardar').disabled = false;
+    document.getElementById('fotoEstado').textContent = 'Revisa la imagen y toca Guardar foto.';
+  }catch(e){ aviso(e.message); }
+}
+document.getElementById('btnFotoElegir').onclick = () => document.getElementById('fotoArchivo').click();
+document.getElementById('fotoArchivo').onchange = e => { tomarImagen(e.target.files[0]); e.target.value = ''; };
+document.addEventListener('paste', e => {
+  if (!dlgFoto.open) return;
+  const it = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith('image/'));
+  if (it){ e.preventDefault(); tomarImagen(it.getAsFile()); }
+});
+const zonaFoto = document.getElementById('fotoZona');
+['dragenter','dragover'].forEach(ev => zonaFoto.addEventListener(ev, e => { e.preventDefault(); zonaFoto.classList.add('sobre'); }));
+['dragleave','drop'].forEach(ev => zonaFoto.addEventListener(ev, e => { e.preventDefault(); zonaFoto.classList.remove('sobre'); }));
+zonaFoto.addEventListener('drop', e => tomarImagen(e.dataTransfer.files[0]));
+async function enviarFoto(datos){
+  const v = fotoVuelo, est = document.getElementById('fotoEstado');
+  ['btnFotoGuardar','btnFotoQuitar','btnFotoElegir'].forEach(id => document.getElementById(id).disabled = true);
+  est.textContent = datos ? 'Subiendo foto…' : 'Quitando foto…';
+  try{
+    const file = datos ? { data:datos.split(',')[1], mime:'image/jpeg', name:`VUELO_${v.drone}_${v.fecha}_${v.ini.replace(/:/g,'')}.jpg`.replace(/\s+/g,'') } : null;
+    const j = await llamar('foto', { id:v.id, file });
+    v.evid = j.evidencia || '';
+    if (v.evid && datos) fotosCache[v.evid] = datos;
+    aviso(datos ? 'Foto guardada.' : 'Foto quitada.');
+    dlgFoto.close(); renderTabla();
+  }catch(e){ est.textContent = 'No se guardó: ' + e.message; }
+  ['btnFotoGuardar','btnFotoQuitar','btnFotoElegir'].forEach(id => document.getElementById(id).disabled = false);
+}
+document.getElementById('btnFotoGuardar').onclick = () => { if (fotoNueva) enviarFoto(fotoNueva); };
+document.getElementById('btnFotoQuitar').onclick = () => { if (confirm('¿Quitar la foto de este vuelo?')) enviarFoto(null); };
+document.getElementById('btnFotoCerrar').onclick = () => dlgFoto.close();
 
 /* ============ Ayuda: cómo se calculan las columnas ============ */
 const dlgAyuda = document.getElementById('dlgAyuda');

@@ -112,15 +112,21 @@ public class MainActivity extends Activity {
             public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
                 if (esperaArchivo != null) esperaArchivo.onReceiveValue(null);
                 esperaArchivo = cb;
+                boolean esImagen = false;
+                for (String t : p.getAcceptTypes()) if (t != null && t.startsWith("image")) esImagen = true;
                 Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                 i.addCategory(Intent.CATEGORY_OPENABLE);
-                i.setType("*/*");
-                i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.ms-excel", "text/csv", "text/comma-separated-values",
-                        "application/octet-stream"});
+                if (esImagen) {
+                    i.setType("image/*");   // fotos de evidencia: galería, capturas, etc.
+                } else {
+                    i.setType("*/*");
+                    i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            "application/vnd.ms-excel", "text/csv", "text/comma-separated-values",
+                            "application/octet-stream"});
+                }
                 try {
-                    startActivityForResult(Intent.createChooser(i, "Elegir Excel de DJI"), PEDIR_ARCHIVO);
+                    startActivityForResult(Intent.createChooser(i, esImagen ? "Elegir foto del vuelo" : "Elegir Excel de DJI"), PEDIR_ARCHIVO);
                 } catch (Exception ex) {
                     esperaArchivo = null;
                     return false;
