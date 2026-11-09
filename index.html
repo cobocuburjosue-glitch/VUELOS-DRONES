@@ -380,7 +380,7 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     </div>
 
     <section class="panel solo-admin" id="panelAsignar" style="margin-top:8px">
-      <div class="panel-cab"><div><h3>Piloto y supervisor por día</h3><p class="nota">Elige el día, marca los drones que voló el piloto y aplícalo una sola vez: se coloca en todos los vuelos de esos drones ese día y se guarda en BOCETO. <span id="nFaltaAsignar"></span></p></div></div>
+      <div class="panel-cab"><div><h3>Piloto y supervisor por día</h3><p class="nota">Elige el día (salen los últimos 7 días), marca los drones que voló el piloto y aplícalo una sola vez: se coloca en todos los vuelos de esos drones ese día y se guarda en BOCETO. <span id="nFaltaAsignar"></span></p></div></div>
       <div class="asig-rapida">
         <div><label class="et" for="aFecha">Día</label><select id="aFecha"></select></div>
         <div><label class="et">Drones que voló</label><div class="chips" id="aDrones"></div></div>
@@ -392,7 +392,10 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
         <p class="nota" id="aResumen" style="grid-column:1/-1;margin:0"></p>
       </div>
       <details class="detalle-asig"><summary>Ver y corregir drone por drone</summary>
-        <label class="nota" style="display:flex;gap:6px;align-items:center;margin:0 0 8px"><input type="checkbox" id="soloSinPiloto"> Solo los que faltan</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin:0 0 8px">
+          <label class="nota" style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="soloSinPiloto"> Solo los que faltan</label>
+          <label class="nota" style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="verAnteriores"> Ver también días de hace más de una semana</label>
+        </div>
         <div class="tabla-scroll" style="max-height:420px"><table id="tablaAsignar"></table></div>
       </details>
     </section>
@@ -571,7 +574,7 @@ const S = {
   ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
   cfg:{...DEF}, listas:{ just:[], sup:[], pil:[] }, conectado:null, error:'', grupo:'dia',
   grupoVar:'dia', persona:'piloto', ocultas:{ litros:new Set(), ha:new Set(), var:new Set(), obs:new Set(), obsDr:new Set(), obsSup:new Set() }, asig:{ fecha:'', drones:new Set() },
-  comentarios:[], accesos:[], foco:'', soloSinPiloto:false,
+  comentarios:[], accesos:[], foco:'', soloSinPiloto:false, verAnteriores:false,
   F:{ desde:'', hasta:'', plantillas:new Set(), piloto:'', sup:'', lote:'', estado:'', obs:'', drones:new Set() },
   T:{ drone:'', estado:'' }
 };
@@ -1157,10 +1160,13 @@ function renderPersona(){
 }
 
 /* Piloto y supervisor por drone y día (solo Cobo) */
+const DIAS_ASIGNAR = 7;
+function limiteAsignar(){ const d = new Date(); d.setDate(d.getDate() - DIAS_ASIGNAR); return `${d.getFullYear()}-${dos(d.getMonth()+1)}-${dos(d.getDate())}`; }
+const asignable = v => v.nuevo || v.fecha >= limiteAsignar();
 function renderAsignar(){
   if (!esAdmin()) return;
   const grupos = new Map();
-  visibles().forEach(v => { const k = v.fecha + '|' + v.drone; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(v); });
+  visibles().filter(v => S.verAnteriores || asignable(v)).forEach(v => { const k = v.fecha + '|' + v.drone; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(v); });
   let filas = [...grupos.values()].map(vs => ({ fecha:vs[0].fecha, drone:vs[0].drone, vs }));
   filas.sort((a,b) => b.fecha.localeCompare(a.fecha) || String(a.drone).localeCompare(String(b.drone), 'es', { numeric:true }));
   const unico = (vs, k) => { const s = new Set(vs.map(v => v[k] || '')); return s.size === 1 ? [...s][0] : null; };
@@ -1188,10 +1194,17 @@ function renderAsignar(){
   }));
 }
 function renderAsigRapida(){
-  const A = S.asig, T = todos();
+  const A = S.asig, T = todos().filter(asignable);
   const fechas = ordenar(T.map(v => v.fecha)).reverse();
   const falta = f => T.some(v => v.fecha === f && (!v.piloto || !v.sup));
   if (!fechas.includes(A.fecha)){ A.fecha = fechas.find(falta) || fechas[0] || ''; A.drones.clear(); }
+  if (!fechas.length){
+    document.getElementById('aFecha').innerHTML = '<option>Sin vuelos de la última semana</option>';
+    document.getElementById('aDrones').innerHTML = '<span class="nota">No hay vuelos de los últimos 7 días por asignar.</span>';
+    document.getElementById('aResumen').textContent = '';
+    document.getElementById('btnAsignar').disabled = true;
+    return;
+  }
   document.getElementById('aFecha').innerHTML = fechas.map(f => `<option value="${esc(f)}" ${f===A.fecha?'selected':''}>${esc(fechaCorta(f))}/${f.slice(0,4)}${falta(f) ? ' · falta' : ''}</option>`).join('');
   const delDia = T.filter(v => v.fecha === A.fecha), drones = ordenar(delDia.map(v => v.drone));
   [...A.drones].forEach(d => { if (!drones.includes(d)) A.drones.delete(d); });
@@ -1237,6 +1250,7 @@ document.getElementById('btnAsignar').onclick = () => {
   aviso(`${piloto || sup} quedó en ${n} vuelos de ${drones} del ${A.fecha}.`, 5000);
 };
 document.getElementById('soloSinPiloto').addEventListener('change', e => { S.soloSinPiloto = e.target.checked; renderAsignar(); });
+document.getElementById('verAnteriores').addEventListener('change', e => { S.verAnteriores = e.target.checked; renderAsignar(); });
 function asignarDia(fecha, drone, k, val){
   let hay = false;
   todos().forEach(v => { if (v.fecha === fecha && v.drone === drone && v[k] !== val){ v[k] = val; if (!v.nuevo){ v.cambio = true; v.ver++; hay = true; } } });
