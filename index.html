@@ -329,6 +329,10 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
 .r-barra .r-pick .pick-panel label{display:flex;font-size:14px}
 .r-barra .r-pick .btn{background:#0e171b;color:#dff7f2;border-color:#16343a}
 .r-barra input[type=date]{border-radius:6px;border:1px solid #16343a;padding:5px 8px;color:#dff7f2;background:#0e171b;font:inherit;color-scheme:dark}
+.chk-fila{display:flex!important;gap:8px;align-items:center;font-weight:400!important;margin:0;cursor:pointer}
+.chk-fila input{width:auto;margin:0}
+.r-chk{cursor:pointer;background:#0e171b;border:1px solid #16343a;border-radius:6px;padding:6px 10px}
+.r-chk input{accent-color:#39ffb0;width:16px;height:16px;margin:0}
 .chk-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px}
 .dlg-cuerpo .chk-lista label{font-weight:400;display:flex;gap:8px;align-items:center;margin:0}
 .dlg-cuerpo .chk-lista input{width:auto}
@@ -592,6 +596,11 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
       <p class="nota">Marca las que quieres habilitar. Si no cambias nada, solo ve las de madurante.</p>
       <div class="chk-lista" id="cfgPublico"></div>
     </div>
+    <div>
+      <label>Fotos de evidencia para el usuario PUBLICO</label>
+      <label class="chk-fila"><input type="checkbox" id="cfgFotosPub"> Permitir que el usuario PUBLICO vea las fotos de los vuelos</label>
+      <p class="nota" style="margin:4px 0 0">Si lo desmarcas, PUBLICO ya no ve la columna Foto ni puede abrir las imágenes. Tú las sigues viendo.</p>
+    </div>
     <div><label for="cfgTol">Tolerancia de variación (%)</label><input id="cfgTol" type="number" step="0.5" min="0" style="width:120px"></div>
   </div>
   <div class="dlg-pie">
@@ -694,6 +703,7 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
     <label>Desde <input type="date" id="rDesde"></label>
     <label>Hasta <input type="date" id="rHasta"></label>
     <details class="pick r-pick" id="rPlantillas"></details>
+    <label class="r-chk"><input type="checkbox" id="rConFotos" checked> Incluir fotos</label>
     <button class="btn prim" type="button" id="btnGenerarRep">Generar reporte</button>
     <button class="btn" type="button" id="btnImprimir">Imprimir o guardar PDF</button>
     <button class="btn" type="button" id="btnCerrarRep">Cerrar</button>
@@ -707,6 +717,7 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
 <script>
 const URL_SCRIPT = 'https://script.google.com/macros/s/AKfycbzxXuyjqShlBHQUKPWyXimzyjiTTOwwmcaSulh3EJcbYP-0iCNCSlOvb0IKtJyv8qs/exec';
 
+const verFotos = () => esAdmin() || S.cfg.fotosPublico !== false;
 const DEF = {
   plantillas:`MT madurante 25 26 = 14
 Pre y bio = 10
@@ -1315,7 +1326,7 @@ function abrirDesglose(titulo, vs){
     <p class="nota" style="margin:0">Ordenados de mayor a menor diferencia en litros. «Peso» es qué parte de toda la diferencia corresponde a cada vuelo. Los marcados en dorado son los que más explican la variación.</p>
     <div class="tabla-scroll" style="max-height:52vh"><table><thead><tr>
       <th>Hora</th>${new Set(vs.map(v => v.fecha)).size > 1 ? '<th>Fecha</th>' : ''}${new Set(vs.map(v => v.drone)).size > 1 ? '<th>Drone</th>' : ''}<th>Piloto</th><th>Plantilla</th><th>Lote</th>
-      <th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th><th class="num" title="Qué parte de toda la diferencia en litros (de más y de menos) corresponde a este vuelo">Peso</th><th class="num">Real aplicado</th><th class="num">Var real</th><th>Estado</th><th>Justificación</th><th>Supervisor</th><th>Foto</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+      <th class="num">Área ha</th><th class="num">L teóricos</th><th class="num">L reales</th><th class="num">L dif</th><th class="num" title="Qué parte de toda la diferencia en litros (de más y de menos) corresponde a este vuelo">Peso</th><th class="num">Real aplicado</th><th class="num">Var real</th><th>Estado</th><th>Justificación</th><th>Supervisor</th>${verFotos() ? '<th>Foto</th>' : ''}${admin ? '<th></th>' : ''}</tr></thead><tbody>
       ${filas.map(v => { const r = calc(v), ap = sumaAbs ? Math.abs(r.dif) / sumaAbs : null;
         return `<tr class="${claveIds.has(v.id) ? 'foco' : ''}"><td>${esc(v.ini.slice(0,5))}</td>${new Set(vs.map(x => x.fecha)).size > 1 ? `<td>${esc(v.fecha)}</td>` : ''}${new Set(vs.map(x => x.drone)).size > 1 ? `<td><b>${esc(v.drone)}</b></td>` : ''}
           <td>${esc(v.piloto || '–')}</td><td>${esc(v.plantilla)}</td><td>${esc(v.lote || '–')}</td>
@@ -1323,7 +1334,7 @@ function abrirDesglose(titulo, vs){
           <td class="num">${ap === null || calc(v).ltsTeo === null ? '–' : Math.round(ap * 100) + '%'}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro ? 'ok' : clase(r.varReal)}">${pc(r.varReal)}</td>
           <td>${r.estado === BUENO ? '<span class="pill b">Bueno</span>' : r.estado === JUSTIFICAR ? (v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>') : '<span class="pill m">Sin plantilla</span>'}</td>
           <td>${esc(r.estado === JUSTIFICAR ? (r.justTexto || 'Pendiente') : r.just || '–')}</td><td>${esc(v.sup || '–')}</td>
-          <td>${v.evid ? `<button type="button" class="btn chico btn-foto con" data-dfoto="${esc(v.id)}">📷 Ver</button>` : '<span class="tenue">–</span>'}</td>
+          ${verFotos() ? `<td>${v.evid ? `<button type="button" class="btn chico btn-foto con" data-dfoto="${esc(v.id)}">📷 Ver</button>` : '<span class="tenue">–</span>'}</td>` : ''}
           ${admin ? `<td><button type="button" class="btn chico" data-ir="${esc(v.id)}">Ir al vuelo</button></td>` : ''}</tr>`; }).join('')}
     </tbody></table></div>`;
   document.querySelectorAll('#desCuerpo [data-ir]').forEach(b => b.onclick = () => { dlgDes.close(); verVuelo(b.dataset.ir); });
@@ -1508,7 +1519,7 @@ function renderTabla(){
     <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th class="edit">Piloto</th><th class="edit">Plantilla</th>
     <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos <button type="button" class="ayuda-btn" data-ayuda="teo" aria-label="¿Cómo se calcula los litros teóricos?">?</button></th><th class="num">L reales</th><th class="num">L dif <button type="button" class="ayuda-btn" data-ayuda="dif" aria-label="¿Cómo se calcula la diferencia de litros?">?</button></th>
     <th class="num fijo">Porcentaje de var <button type="button" class="ayuda-btn" data-ayuda="pct" aria-label="¿Cómo se calcula el porcentaje de var?">?</button></th><th class="num fijo">Real aplicado <button type="button" class="ayuda-btn" data-ayuda="real" aria-label="¿Cómo se calcula el real aplicado?">?</button></th><th class="num fijo">Var real aplicado <button type="button" class="ayuda-btn" data-ayuda="var" aria-label="¿Cómo se calcula la var real aplicada?">?</button></th>
-    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th><th>Foto</th>${admin ? '<th>Ocultar</th>' : '<th>Comentar</th>'}</tr></thead><tbody>`;
+    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th>${verFotos() ? '<th>Foto</th>' : ''}${admin ? '<th>Ocultar</th>' : '<th>Comentar</th>'}</tr></thead><tbody>`;
   const lista = todosAll(), filas = enTabla();
   filas.forEach(v => {
     const r = calc(v), i = lista.indexOf(v), toca = r.estado === JUSTIFICAR;
@@ -1525,7 +1536,7 @@ function renderTabla(){
       <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${cPil}</td><td>${admin ? `<select class="plant" data-i="${i}" data-k="plantilla" aria-label="Plantilla">${opcP(v.plantilla)}</select>` : esc(v.plantilla)}</td>
       <td class="num">${esTV(v) ? (admin ? `<button type="button" class="tv-celda" data-tv="${i}" title="Cambiar el rango de tasa variable">${tasaTxt(v)}</button>` : `<span class="tv-celda">${tasaTxt(v)}</span>`) : v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
       <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
-      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td><td>${celdaFoto(v, i, toca, admin)}</td>${admin ? `<td><button type="button" class="btn chico ocultar-btn" data-oc="${i}" aria-pressed="${!!v.oculto}" title="${v.oculto ? 'Volver a mostrar este vuelo' : 'Ocultar: no cuenta en el resumen, gráficas, Excel ni reporte'}">${v.oculto ? 'Mostrar' : 'Ocultar'}</button></td>` : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
+      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td>${verFotos() ? `<td>${celdaFoto(v, i, toca, admin)}</td>` : ''}${admin ? `<td><button type="button" class="btn chico ocultar-btn" data-oc="${i}" aria-pressed="${!!v.oculto}" title="${v.oculto ? 'Volver a mostrar este vuelo' : 'Ocultar: no cuenta en el resumen, gráficas, Excel ni reporte'}">${v.oculto ? 'Mostrar' : 'Ocultar'}</button></td>` : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
   });
   const t = document.getElementById('tablaVuelos');
   t.innerHTML = h + '</tbody>';
@@ -1738,6 +1749,7 @@ document.getElementById('btnAjustes').onclick = () => {
   document.getElementById('cfgSup').value = S.cfg.sup;
   document.getElementById('cfgPilotos').value = S.cfg.pilotos || '';
   document.getElementById('cfgTol').value = S.cfg.tol;
+  document.getElementById('cfgFotosPub').checked = S.cfg.fotosPublico !== false;
   document.getElementById('notaJust').textContent = S.listas.just.length
     ? `Se están usando las ${S.listas.just.length} justificaciones de la pestaña "${S.listas.justHoja || 'BOCETO'}" (${S.listas.just.map(j => j.n + '. ' + j.t).join(', ')}). Esta lista de abajo solo se usa si BOCETO no tiene una lista numerada.`
     : 'No encontré una lista numerada de justificaciones en BOCETO, así que se usa esta.';
@@ -1756,7 +1768,8 @@ document.getElementById('btnGuardarAj').onclick = async () => {
   const nuevo = { plantillas:document.getElementById('cfgPlantillas').value, just:document.getElementById('cfgJust').value,
     sup:document.getElementById('cfgSup').value, pilotos:document.getElementById('cfgPilotos').value,
     publico:[...document.querySelectorAll('#cfgPublico input:checked')].map(i => i.value),
-    tol:num(document.getElementById('cfgTol').value) ?? DEF.tol };
+    tol:num(document.getElementById('cfgTol').value) ?? DEF.tol,
+    fotosPublico:document.getElementById('cfgFotosPub').checked };
   const b = document.getElementById('btnGuardarAj'); b.disabled = true;
   try{
     await llamar('config', { cfg:nuevo });
@@ -1862,7 +1875,7 @@ function celdaFoto(v, i, toca, admin){
 }
 function infoVuelo(v){ const r = calc(v); return `Vuelo de <b>${esc(v.drone)}</b> del ${esc(v.fecha)} a las ${esc(v.ini.slice(0,5))} · ${esc(v.plantilla)}${v.lote ? ` · lote ${esc(v.lote)}` : ''} · variación ${pc(r.varReal)}${r.justTexto ? ` · ${esc(r.justTexto)}` : ''}`; }
 async function abrirFoto(v){
-  if (!v) return;
+  if (!v || !verFotos()) return;
   fotoVuelo = v; fotoNueva = null;
   const admin = esAdmin(), zona = document.getElementById('fotoZona');
   document.getElementById('fotoTitulo').textContent = v.evid ? 'Foto del vuelo' : 'Agregar foto del vuelo';
@@ -2109,6 +2122,7 @@ document.getElementById('rSemana').addEventListener('change', e => {
 ['rDesde','rHasta'].forEach(id => document.getElementById(id).addEventListener('change', () => { document.getElementById('rSemana').value = ''; }));
 document.getElementById('btnGenerarRep').onclick = generarReporte;
 document.getElementById('btnReporte').onclick = abrirReporte;
+document.getElementById('rConFotos').onchange = () => { if (rangoRep.desde) armarReporte(rangoRep.desde, rangoRep.hasta); };
 document.getElementById('btnImprimir').onclick = () => {
   const t = 'Reporte vuelos ' + textoRango(rangoRep.desde, rangoRep.hasta).split(' · ')[0].replace(/\//g, '-') + ' - Creado por Cobo Cubur';
   if (window.AppAndroid){ AppAndroid.imprimir(t); return; }
@@ -2202,7 +2216,7 @@ function armarReporte(desde, hasta){
       + filas.map(f => `<tr><td><b>${esc(f.p)}</b></td><td>${esc(f.drones.join(', '))}</td><td class="num">${f.a.n}</td><td class="num">${f2(f.a.area)}</td><td class="num ${rc(f.a.var)}">${pc(f.a.var)}</td><td class="num rb">${f.a.bueno}</td><td class="num">${f.a.justif}${f.a.pend ? ` (${f.a.pend} pend.)` : ''}</td><td>${esc(textoJust(f.just)) || '–'}</td></tr>`).join('') + '</tbody></table>';
   };
   const conFoto = lista.filter(v => v.evid), numFoto = {}; conFoto.forEach((v, k) => numFoto[v.id] = k + 1);
-  const hayFotos = conFoto.length > 0;
+  const hayFotos = conFoto.length > 0 && document.getElementById('rConFotos').checked;
   const tablaVuelos = (vs, conJust) => vs.length ? `<table><thead><tr><th>Fecha</th><th>Hora</th><th>Drone</th><th>Piloto</th><th>Lote</th><th>Plantilla</th><th class="num">Teórico</th><th class="num">Real</th><th class="num">Var.</th>${conJust ? '<th>Justificación</th>' : ''}<th>Supervisor</th>${hayFotos ? '<th>Foto</th>' : ''}</tr></thead><tbody>`
       + vs.map(v => { const r = calc(v); return `<tr><td style="white-space:nowrap">${esc(v.fecha)}</td><td>${esc(v.ini.slice(0,5))}</td><td>${esc(v.drone)}</td><td>${esc(v.piloto || '–')}</td><td>${esc(v.lote || '–')}</td><td>${esc(v.plantilla)}</td><td class="num">${tasaTxt(v)}</td><td class="num">${f2(r.real)}</td><td class="num ${rc(r.varReal)}">${pc(r.varReal)}</td>${conJust ? `<td><b>${esc(r.justTexto)}</b></td>` : ''}<td>${esc(v.sup || '–')}</td>${hayFotos ? `<td style="white-space:nowrap">${numFoto[v.id] ? `Foto ${numFoto[v.id]}` : '–'}</td>` : ''}</tr>`; }).join('') + '</tbody></table>'
     : `<p class="r-vacio">${conJust ? 'No hubo vuelos justificados en estas fechas.' : 'No quedaron vuelos pendientes de justificar.'}</p>`;
