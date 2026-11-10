@@ -94,6 +94,9 @@ button.tv-celda{cursor:pointer}
 .subir.pendiente p{color:var(--tinta)}
 
 .filtros{background:var(--panel);border:1px solid var(--linea);border-radius:18px;padding:16px 20px;margin:0 0 14px}
+.filtros{position:relative;z-index:25}
+details.f-pick[open],details.pick[open],details[open] > .pick-panel{z-index:60}
+details[open]:has(> .pick-panel){position:relative;z-index:60}
 .filtros .fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px}
 .filtros label,.tfiltros label{font-size:12.5px;color:var(--gris);display:block;margin-bottom:2px;font-weight:600}
 .filtros select,.filtros input,.tfiltros select{width:100%;border:1px solid var(--linea);border-radius:6px;padding:6px 8px;background:var(--campo)}
@@ -164,9 +167,9 @@ dialog{box-shadow:0 0 0 1px rgba(57,255,176,.25),0 0 50px rgba(57,255,176,.12),0
   @keyframes latir{50%{opacity:.35;transform:scale(.75)}}
   .alerta-neon{animation:alertaLatir 2.4s ease-in-out infinite}
   @keyframes alertaLatir{50%{box-shadow:0 0 0 1px rgba(255,93,115,.55),0 0 26px rgba(255,93,115,.3)}}
-  .principal .wrap > *{animation:entrar .6s cubic-bezier(.2,.7,.2,1) both}
+  .principal .wrap > *{animation:entrar .6s cubic-bezier(.2,.7,.2,1) backwards}
   .principal .wrap > *:nth-child(2){animation-delay:.05s} .principal .wrap > *:nth-child(3){animation-delay:.1s} .principal .wrap > *:nth-child(n+4){animation-delay:.15s}
-  #tablero > *{animation:entrar .7s cubic-bezier(.2,.7,.2,1) both}
+  #tablero > *{animation:entrar .7s cubic-bezier(.2,.7,.2,1) backwards}
   #tablero > *:nth-child(2){animation-delay:.08s} #tablero > *:nth-child(3){animation-delay:.16s} #tablero > *:nth-child(n+4){animation-delay:.24s}
   @keyframes entrar{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   .aro{animation:aroDibujar 1.4s cubic-bezier(.2,.7,.2,1) both}
@@ -277,8 +280,9 @@ dialog::backdrop{background:rgba(3,8,4,.7)}
 .pick summary::-webkit-details-marker{display:none}
 .pick summary::after{content:" ▾";color:var(--gris)}
 .pick[open] summary{border-color:var(--tallo)}
-.pick-panel{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:var(--panel);border:1px solid var(--linea);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:8px;min-width:230px;max-height:340px;overflow:auto}
-.pick-panel label{display:flex;gap:8px;align-items:center;padding:3px 4px;font-size:13.5px;cursor:pointer;border-radius:4px;white-space:nowrap}
+.pick-panel{position:absolute;right:0;top:calc(100% + 4px);z-index:60;background:var(--panel);border:1px solid var(--linea);border-radius:8px;box-shadow:0 0 0 1px rgba(57,255,176,.2),0 14px 40px rgba(0,0,0,.7);padding:8px;min-width:230px;max-height:340px;overflow:auto}
+.pick-panel label{display:flex;gap:10px;align-items:center;justify-content:flex-start;text-align:left;padding:6px 8px;font-size:14px;font-weight:500;cursor:pointer;border-radius:6px;white-space:nowrap;color:var(--tinta)}
+.pick-panel input[type=checkbox]{width:16px;height:16px;flex:none;margin:0;padding:0;accent-color:var(--neon)}
 .pick-panel label:hover{background:color-mix(in srgb,var(--tallo) 12%,transparent)}
 .pick-acc{display:flex;gap:6px;margin-bottom:6px}
 .f-pick{display:block;width:100%}
