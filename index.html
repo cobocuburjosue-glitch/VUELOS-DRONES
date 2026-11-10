@@ -76,6 +76,11 @@ body.en-app .descarga-app{display:none}
 
 .subir{margin:0 0 14px;background:var(--panel);border:2px dashed var(--linea);border-radius:18px;padding:18px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .subir.sobre{border-color:var(--tallo)}
+.tv-btn[aria-pressed="true"]{background:var(--tallo);color:#1d1806;border-color:var(--tallo)}
+.tv-aviso{margin:6px 0 0;font-size:14px}
+.tv-campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tv-celda{font:inherit;font-weight:700;color:var(--tallo);background:rgba(226,193,96,.1);border:1px solid rgba(226,193,96,.35);border-radius:999px;padding:2px 9px;white-space:nowrap}
+button.tv-celda{cursor:pointer}
 .subir.compacta{padding:10px 16px;gap:12px;border-width:1.5px}
 .subir.compacta p{margin:0;font-size:13.5px}
 .subir .txt{flex:1;min-width:240px}
@@ -576,6 +581,25 @@ details.detalle-asig > summary{cursor:pointer;font-weight:600;font-size:14px;col
   <div class="dlg-pie"><button class="btn verde" type="button" id="btnDesCerrar">Cerrar</button></div>
 </dialog>
 
+<dialog id="dlgTV" style="max-width:460px">
+  <div class="dlg-cab"><h2>Tasa variable (TV)</h2></div>
+  <form class="dlg-cuerpo" id="formTV" style="gap:14px" novalidate>
+    <p class="nota" style="margin:0" id="tvQue"></p>
+    <div class="tv-campos">
+      <div><label for="tvMin">Mínimo (L/ha)</label><input id="tvMin" type="number" inputmode="decimal" step="any" min="0" required></div>
+      <div><label for="tvMax">Máximo (L/ha)</label><input id="tvMax" type="number" inputmode="decimal" step="any" min="0" required></div>
+    </div>
+    <p class="nota" style="margin:0" id="tvRango"></p>
+    <p class="error" id="tvError" role="alert"></p>
+  </form>
+  <div class="dlg-pie">
+    <button class="btn" type="button" id="tvQuitar">Quitar TV</button>
+    <span style="flex:1"></span>
+    <button class="btn" type="button" id="tvCancelar">Cancelar</button>
+    <button class="btn prim" type="submit" form="formTV" id="tvAplicar">Aplicar</button>
+  </div>
+</dialog>
+
 <dialog id="dlgAyuda" style="max-width:560px">
   <div class="dlg-cab"><h2 id="ayudaTitulo">¿Cómo se calcula?</h2></div>
   <div class="dlg-cuerpo" id="ayudaCuerpo" style="gap:12px"></div>
@@ -642,7 +666,7 @@ const COLUMNAS = [
   'FECHA','HORA INICIO','HORA FIN','DURACION','DRONE','PILOTO','UBICACION','PLANTILLA',
   'LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES',
   'LTS DIF','PORCENTAJE DE VAR','REAL APLICADO','JUSTIFICACION','VAR REAL APLICADO',
-  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO','EVIDENCIA'
+  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO','EVIDENCIA','TV MIN','TV MAX'
 ];
 const COLORES_DRONE = ['#e0a33c','#5fa8e0','#7cc47f','#d86a9a','#a58be0','#e07a4a','#4ec1b5','#c9c95a','#9aa7b8','#ef8f8f'];
 const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla';
@@ -831,7 +855,7 @@ function leerExcelDJI(buf){
     const serie = col.serie >= 0 ? String(f[col.serie]).trim() : '';
     out.push({ id: serie || `${drone}_${t.fecha}_${t.ini}_${idx}`, fecha:t.fecha, ini:t.ini, fin:t.fin || sumarDuracion(t.ini, dur), dur,
       drone, piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '', ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
-      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', evid:'', nuevo:true, cambio:false, ver:0 });
+      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', evid:'', tvMin:null, tvMax:null, nuevo:true, cambio:false, ver:0 });
   });
   if (!out.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
   return out;
@@ -850,14 +874,26 @@ function desdeHoja(headers, rows){
       area:num(g(r,'AREA (HA)')) || 0, litros:num(g(r,'LTS REALES')) || 0,
       nJust:String(g(r,'OBSERVACION') ?? '').trim(), justTxt:String(g(r,'JUSTIFICACION') ?? '').trim(),
       lote:String(g(r,'LOTE') ?? '').trim(), sup:String(g(r,'SUPERVISOR') ?? '').trim(),
-      archivo:String(g(r,'ARCHIVO')), evid:String(g(r,'EVIDENCIA') ?? '').trim(), nuevo:false, cambio:false, ver:0 };
+      archivo:String(g(r,'ARCHIVO')), evid:String(g(r,'EVIDENCIA') ?? '').trim(),
+      tvMin:num(g(r,'TV MIN')), tvMax:num(g(r,'TV MAX')), nuevo:false, cambio:false, ver:0 };
   }).filter(v => v.area > 0);
 }
 
 /* ============ Cálculos ============ */
+const esTV = v => v.tvMin !== null && v.tvMin !== undefined && v.tvMax !== null && v.tvMax !== undefined && v.tvMax > 0;
+const tasaTxt = v => esTV(v) ? `TV ${f2(v.tvMin)} – ${f2(v.tvMax)}` : f2(v.tasa);
 function calc(v){
-  const r = { real: v.area ? v.litros / v.area : null, ltsTeo:null, dif:null, pctVar:null, varReal:null, dentro:null };
-  if (v.tasa){
+  const r = { real: v.area ? v.litros / v.area : null, ltsTeo:null, dif:null, pctVar:null, varReal:null, dentro:null, tv:false };
+  if (esTV(v) && r.real !== null){
+    // Tasa variable: el vuelo está bien si su L/ha real cae entre el mínimo y el máximo (más la tolerancia).
+    // La meta es el L/ha real recortado al rango: si quedó dentro, la meta es el mismo real (variación 0).
+    const meta = Math.min(Math.max(r.real, v.tvMin), v.tvMax);
+    r.tv = true; r.meta = meta;
+    r.ltsTeo = v.area * meta; r.dif = v.litros - r.ltsTeo;
+    r.pctVar = v.litros ? r.dif / v.litros : null;
+    r.varReal = meta ? (r.real - meta) / meta : null;
+    r.dentro = r.varReal !== null && Math.abs(r.varReal) * 100 <= S.cfg.tol + 1e-9;
+  } else if (v.tasa){
     r.ltsTeo = v.area * v.tasa; r.dif = v.litros - r.ltsTeo;
     r.pctVar = v.litros ? r.dif / v.litros : null;
     r.varReal = (r.real - v.tasa) / v.tasa;
@@ -961,9 +997,13 @@ function renderSubir(){
   const z = document.getElementById('zonaSubir'), tx = document.getElementById('subirTxt'), ac = document.getElementById('subirAcciones');
   if (S.pendientes.length){
     z.classList.add('pendiente'); z.classList.remove('compacta');
-    tx.innerHTML = `<h2>Excel nuevo listo para guardar</h2><p><b>${S.pendientes.length}</b> vuelos nuevos de <b>${esc(S.archivo.name)}</b>${S.repetidos?`. ${S.repetidos} ya estaban en BOCETO y no se repiten`:''}. Antes de guardar, revisa la plantilla y asigna piloto y supervisor en <b>Piloto y supervisor por día</b>; luego toca <b>Guardar</b>.</p>`;
-    ac.innerHTML = `<button class="btn" type="button" id="btnDescartar">Descartar</button><button class="btn prim" type="button" id="btnElegir">Cambiar archivo</button>`;
+    const tv = S.pendientes.find(esTV), tol = S.cfg.tol;
+    tx.innerHTML = `<h2>Excel nuevo listo para guardar</h2><p><b>${S.pendientes.length}</b> vuelos nuevos de <b>${esc(S.archivo.name)}</b>${S.repetidos?`. ${S.repetidos} ya estaban en BOCETO y no se repiten`:''}. Antes de guardar, revisa la plantilla y asigna piloto y supervisor en <b>Piloto y supervisor por día</b>; luego toca <b>Guardar</b>.</p>`
+      + (tv ? `<p class="tv-aviso"><b>Tasa variable activada:</b> mínimo ${f2(tv.tvMin)} L/ha y máximo ${f2(tv.tvMax)} L/ha. Se justifica el vuelo que aplique menos de ${f2(tv.tvMin * (1 - tol/100))} o más de ${f2(tv.tvMax * (1 + tol/100))} L/ha (±${tol}%).</p>`
+            : `<p class="tv-aviso tenue">¿Es un vuelo de tasa variable? Toca <b>TV</b> para poner el mínimo y el máximo de L/ha.</p>`);
+    ac.innerHTML = `<button class="btn tv-btn" type="button" id="btnTV" aria-pressed="${!!tv}">TV${tv ? ' activado' : ''}</button><button class="btn" type="button" id="btnDescartar">Descartar</button><button class="btn prim" type="button" id="btnElegir">Cambiar archivo</button>`;
     document.getElementById('btnDescartar').onclick = () => { S.pendientes = []; S.archivo = null; S.repetidos = 0; render(); };
+    document.getElementById('btnTV').onclick = () => abrirTV(null);
   } else {
     z.classList.remove('pendiente'); z.classList.add('compacta');
     tx.innerHTML = `<p>Arrastra aquí el Excel que bajaste de DJI, o usa <b>Subir Excel de DJI</b>. Se guarda en VUELOS DRONES 26-27 y los vuelos pasan a BOCETO.</p>`;
@@ -1178,10 +1218,10 @@ function clicDesglose(cats, f, lab, drones){
 const dlgDes = document.getElementById('dlgDesglose');
 function abrirDesglose(titulo, vs){
   const a = agregado(vs), tol = S.cfg.tol, admin = esAdmin();
-  const conTasa = vs.filter(v => v.tasa), difTotal = conTasa.reduce((s,v) => s + calc(v).dif, 0), sumaAbs = conTasa.reduce((s,v) => s + Math.abs(calc(v).dif), 0);
+  const conTasa = vs.filter(v => calc(v).ltsTeo !== null), difTotal = conTasa.reduce((s,v) => s + calc(v).dif, 0), sumaAbs = conTasa.reduce((s,v) => s + Math.abs(calc(v).dif), 0);
   const filas = [...vs].sort((x,y) => Math.abs(calc(y).dif || 0) - Math.abs(calc(x).dif || 0));
   // Qué vuelos explican la diferencia: los que empujan en el mismo sentido que el total
-  const mismos = filas.filter(v => v.tasa && Math.sign(calc(v).dif) === Math.sign(difTotal) && calc(v).dif !== 0);
+  const mismos = filas.filter(v => calc(v).ltsTeo !== null && Math.sign(calc(v).dif) === Math.sign(difTotal) && calc(v).dif !== 0);
   let acum = 0; const clave = [];
   for (const v of mismos){ clave.push(v); acum += calc(v).dif; if (Math.abs(acum) >= Math.abs(difTotal)) break; if (clave.length >= 5) break; }
   const sentido = difTotal > 0 ? 'de más' : 'de menos';
@@ -1214,7 +1254,7 @@ function abrirDesglose(titulo, vs){
         return `<tr class="${claveIds.has(v.id) ? 'foco' : ''}"><td>${esc(v.ini.slice(0,5))}</td>${new Set(vs.map(x => x.fecha)).size > 1 ? `<td>${esc(v.fecha)}</td>` : ''}${new Set(vs.map(x => x.drone)).size > 1 ? `<td><b>${esc(v.drone)}</b></td>` : ''}
           <td>${esc(v.piloto || '–')}</td><td>${esc(v.plantilla)}</td><td>${esc(v.lote || '–')}</td>
           <td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${r.dif > 0 ? '+' : ''}${f2(r.dif)}</td>
-          <td class="num">${ap === null || !v.tasa ? '–' : Math.round(ap * 100) + '%'}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro ? 'ok' : clase(r.varReal)}">${pc(r.varReal)}</td>
+          <td class="num">${ap === null || calc(v).ltsTeo === null ? '–' : Math.round(ap * 100) + '%'}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro ? 'ok' : clase(r.varReal)}">${pc(r.varReal)}</td>
           <td>${r.estado === BUENO ? '<span class="pill b">Bueno</span>' : r.estado === JUSTIFICAR ? (v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>') : '<span class="pill m">Sin plantilla</span>'}</td>
           <td>${esc(r.estado === JUSTIFICAR ? (r.justTexto || 'Pendiente') : r.just || '–')}</td><td>${esc(v.sup || '–')}</td>
           <td>${v.evid ? `<button type="button" class="btn chico btn-foto con" data-dfoto="${esc(v.id)}">📷 Ver</button>` : '<span class="tenue">–</span>'}</td>
@@ -1414,7 +1454,7 @@ function renderTabla(){
     const cLote = admin ? `<input class="lote" data-i="${i}" data-k="lote" value="${esc(v.lote)}" aria-label="Lote">` : esc(v.lote);
     h += `<tr class="${toca?'fuera':''} ${v.nJust?'just':''} ${v.cambio?'cambio':''} ${v.id === S.foco ? 'foco' : ''}">
       <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${cPil}</td><td>${admin ? `<select class="plant" data-i="${i}" data-k="plantilla" aria-label="Plantilla">${opcP(v.plantilla)}</select>` : esc(v.plantilla)}</td>
-      <td class="num">${v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
+      <td class="num">${esTV(v) ? (admin ? `<button type="button" class="tv-celda" data-tv="${i}" title="Cambiar el rango de tasa variable">${tasaTxt(v)}</button>` : `<span class="tv-celda">${tasaTxt(v)}</span>`) : v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
       <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
       <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td><td>${celdaFoto(v, i, toca, admin)}</td>${admin ? '' : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
   });
@@ -1423,6 +1463,7 @@ function renderTabla(){
   const aJ = filas.filter(v => calc(v).estado === JUSTIFICAR).length;
   document.getElementById('tConteo').textContent = `${filas.length} vuelos · ${filas.length - aJ} Bueno · ${aJ} Justificar`;
   t.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => abrirAyuda(b.dataset.ayuda));
+  t.querySelectorAll('[data-tv]').forEach(b => b.onclick = () => abrirTV(lista[+b.dataset.tv]));
   t.querySelectorAll('[data-foto]').forEach(b => b.onclick = () => abrirFoto(lista[+b.dataset.foto]));
   if (!admin){
     t.querySelectorAll('[data-c]').forEach(b => b.onclick = () => abrirComentar(lista[+b.dataset.c]));
@@ -1454,7 +1495,8 @@ function fila(v){
   return [ v.fecha, v.ini, v.fin, v.dur, v.drone, v.piloto, v.ubic, v.plantilla,
     v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
     red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
-    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo, v.evid || '' ];
+    v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo, v.evid || '',
+    esTV(v) ? v.tvMin : '', esTV(v) ? v.tvMax : '' ];
 }
 
 async function actualizar(silencioso){
@@ -1815,10 +1857,51 @@ document.getElementById('btnFotoGuardar').onclick = () => { if (fotoNueva) envia
 document.getElementById('btnFotoQuitar').onclick = () => { if (confirm('¿Quitar la foto de este vuelo?')) enviarFoto(null); };
 document.getElementById('btnFotoCerrar').onclick = () => dlgFoto.close();
 
+/* ============ Tasa variable (TV) ============ */
+const dlgTV = document.getElementById('dlgTV');
+let tvGrupo = [];
+function abrirTV(v){
+  // Sin vuelo: los vuelos del Excel nuevo. Con vuelo: todos los vuelos del mismo Excel (mismo archivo).
+  tvGrupo = v ? todos().filter(x => v.archivo ? x.archivo === v.archivo : x === v) : [...S.pendientes];
+  if (!tvGrupo.length) return;
+  const ref = tvGrupo.find(esTV), fechas = tvGrupo.map(x => x.fecha).sort();
+  const dias = fechas[0] === fechas[fechas.length-1] ? fechas[0] : `${fechas[0]} al ${fechas[fechas.length-1]}`;
+  document.getElementById('tvQue').innerHTML = `Se aplica a <b>${tvGrupo.length} vuelos</b> (${esc(dias)})${v && v.archivo ? ` del Excel <b>${esc(v.archivo)}</b>` : ' del Excel nuevo'}. Escribe el rango de litros por hectárea de tu mapa de tasa variable.`;
+  document.getElementById('tvMin').value = ref ? ref.tvMin : '';
+  document.getElementById('tvMax').value = ref ? ref.tvMax : '';
+  document.getElementById('tvQuitar').classList.toggle('oculto', !ref);
+  document.getElementById('tvError').textContent = '';
+  pintarRangoTV();
+  dlgTV.showModal();
+  setTimeout(() => document.getElementById('tvMin').focus(), 50);
+}
+function pintarRangoTV(){
+  const mi = num(document.getElementById('tvMin').value), ma = num(document.getElementById('tvMax').value), tol = S.cfg.tol;
+  document.getElementById('tvRango').innerHTML = mi !== null && ma !== null && mi > 0 && ma >= mi
+    ? `Bueno de <b>${f2(mi * (1 - tol/100))}</b> a <b>${f2(ma * (1 + tol/100))}</b> L/ha (rango ±${tol}%). Fuera de eso, el vuelo se justifica.` : '';
+}
+['tvMin','tvMax'].forEach(id => document.getElementById(id).addEventListener('input', pintarRangoTV));
+function ponerTV(mi, ma){
+  tvGrupo.forEach(x => { x.tvMin = mi; x.tvMax = ma; if (!x.nuevo){ x.cambio = true; x.ver++; } });
+  dlgTV.close(); render();
+  if (tvGrupo.some(x => !x.nuevo)) programarAutoguardado();
+}
+document.getElementById('formTV').onsubmit = e => {
+  e.preventDefault();
+  const mi = num(document.getElementById('tvMin').value), ma = num(document.getElementById('tvMax').value), er = document.getElementById('tvError');
+  if (mi === null || ma === null || mi <= 0 || ma <= 0){ er.textContent = 'Escribe el mínimo y el máximo en L/ha (números mayores que 0).'; return; }
+  if (mi > ma){ er.textContent = 'El mínimo no puede ser mayor que el máximo.'; return; }
+  ponerTV(mi, ma);
+  aviso(`Tasa variable ${f2(mi)} – ${f2(ma)} L/ha aplicada a ${tvGrupo.length} vuelos.`);
+};
+document.getElementById('tvQuitar').onclick = () => { ponerTV(null, null); aviso('Se quitó la tasa variable; esos vuelos vuelven a usar el L/ha de la plantilla.'); };
+document.getElementById('tvCancelar').onclick = () => dlgTV.close();
+
 /* ============ Ayuda: cómo se calculan las columnas ============ */
 const dlgAyuda = document.getElementById('dlgAyuda');
 function abrirAyuda(cual){
-  const v = enTabla().find(x => x.tasa && x.area) || todos().find(x => x.tasa && x.area);
+  const v = enTabla().find(x => x.tasa && x.area && !esTV(x)) || todos().find(x => x.tasa && x.area && !esTV(x));
+  const vt = enTabla().find(x => esTV(x) && x.area) || todos().find(x => esTV(x) && x.area), rt = vt ? calc(vt) : null;
   const r = v ? calc(v) : null, tol = S.cfg.tol, n = x => f2(x), r2 = x => Math.round(x * 100) / 100;
   // el ejemplo usa los mismos números redondeados que se ven, para que la cuenta cuadre a mano
   const n4 = x => x.toLocaleString('es-GT', { minimumFractionDigits:2, maximumFractionDigits:4 }), teoR = v ? r2(r.ltsTeo) : 0, realR = v ? r2(r.real) : 0;
@@ -1846,7 +1929,9 @@ function abrirAyuda(cual){
       e: v ? `<p class="ejemplo">${ej}<br>(${n4(r.real)} − ${n(v.tasa)}) ÷ ${n(v.tasa)} × 100 = <b>${pc(r.varReal)}</b> → <b>${r.dentro ? 'Bueno' : 'Justificar'}</b></p>` : '' }
   }[cual];
   document.getElementById('ayudaTitulo').textContent = `¿Cómo se calcula “${T.t}”?`;
-  document.getElementById('ayudaCuerpo').innerHTML = `<p class="formula">${esc(T.t)} = ${esc(T.f)}</p><p style="margin:0">${T.d}</p>${T.e}`;
+  const tvTxtAyuda = `<p style="margin:0"><b>Vuelos de tasa variable (TV):</b> no tienen un solo L/ha, sino un mínimo y un máximo. Si el real aplicado queda dentro de ese rango, el L/ha teórico es el mismo real aplicado (variación 0%). Si se sale, se compara contra el límite más cercano: contra el mínimo si aplicó menos, contra el máximo si aplicó más. Se justifica cuando pasa de −${tol}% del mínimo o de +${tol}% del máximo.</p>`
+    + (vt ? `<p class="ejemplo">Ejemplo con el vuelo TV de <b>${esc(vt.drone)}</b> del ${esc(vt.fecha)} a las ${esc(vt.ini.slice(0,5))}: rango ${n(vt.tvMin)} – ${n(vt.tvMax)} L/ha, real ${n(rt.real)} L/ha → L/ha teórico <b>${n(rt.meta)}</b> → variación <b>${pc(rt.varReal)}</b> → <b>${rt.dentro ? 'Bueno' : 'Justificar'}</b></p>` : '');
+  document.getElementById('ayudaCuerpo').innerHTML = `<p class="formula">${esc(T.t)} = ${esc(T.f)}</p><p style="margin:0">${T.d}</p>${T.e}${['teo','var','real'].includes(cual) ? tvTxtAyuda : ''}`;
   dlgAyuda.showModal();
 }
 document.getElementById('btnAyudaCerrar').onclick = () => dlgAyuda.close();
@@ -1989,7 +2074,7 @@ function armarReporte(desde, hasta){
   const sumaDia = (fil, val) => dias.map(d => r2(lista.filter(v => v.fecha === d && fil(v)).reduce((s,v) => s + val(v), 0)));
   const varDe = vs => { const x = agregado(vs); return x.var === null ? null : +(x.var * 100).toFixed(2); };
   const porDrone = drones.map(d => { const vs = lista.filter(v => v.drone === d); return { d, vs, a:agregado(vs), dias:new Set(vs.map(v => v.fecha)).size, pilotos:ordenar(vs.map(v => v.piloto)) }; });
-  const porPlant = ordenar(lista.map(v => v.plantilla)).map(p => { const vs = lista.filter(v => v.plantilla === p); return { p, a:agregado(vs), tasa:vs[0].tasa, drones:ordenar(vs.map(v => v.drone)) }; });
+  const porPlant = ordenar(lista.map(v => v.plantilla)).map(p => { const vs = lista.filter(v => v.plantilla === p); const tv = vs.filter(esTV); return { p, a:agregado(vs), tasa:vs[0].tasa, tvTxt: tv.length ? `TV ${f2(Math.min(...tv.map(v => v.tvMin)))} – ${f2(Math.max(...tv.map(v => v.tvMax)))}` : '', drones:ordenar(vs.map(v => v.drone)) }; });
   const conVar = porDrone.filter(x => x.a.var !== null).sort((x,y) => Math.abs(x.a.var) - Math.abs(y.a.var));
   const justificados = lista.filter(v => calc(v).estado === JUSTIFICAR && v.nJust);
   const pendientes = lista.filter(v => calc(v).estado === JUSTIFICAR && !v.nJust);
@@ -2041,7 +2126,7 @@ function armarReporte(desde, hasta){
   const conFoto = lista.filter(v => v.evid), numFoto = {}; conFoto.forEach((v, k) => numFoto[v.id] = k + 1);
   const hayFotos = conFoto.length > 0;
   const tablaVuelos = (vs, conJust) => vs.length ? `<table><thead><tr><th>Fecha</th><th>Hora</th><th>Drone</th><th>Piloto</th><th>Lote</th><th>Plantilla</th><th class="num">Teórico</th><th class="num">Real</th><th class="num">Var.</th>${conJust ? '<th>Justificación</th>' : ''}<th>Supervisor</th>${hayFotos ? '<th>Foto</th>' : ''}</tr></thead><tbody>`
-      + vs.map(v => { const r = calc(v); return `<tr><td style="white-space:nowrap">${esc(v.fecha)}</td><td>${esc(v.ini.slice(0,5))}</td><td>${esc(v.drone)}</td><td>${esc(v.piloto || '–')}</td><td>${esc(v.lote || '–')}</td><td>${esc(v.plantilla)}</td><td class="num">${f2(v.tasa)}</td><td class="num">${f2(r.real)}</td><td class="num ${rc(r.varReal)}">${pc(r.varReal)}</td>${conJust ? `<td><b>${esc(r.justTexto)}</b></td>` : ''}<td>${esc(v.sup || '–')}</td>${hayFotos ? `<td style="white-space:nowrap">${numFoto[v.id] ? `Foto ${numFoto[v.id]}` : '–'}</td>` : ''}</tr>`; }).join('') + '</tbody></table>'
+      + vs.map(v => { const r = calc(v); return `<tr><td style="white-space:nowrap">${esc(v.fecha)}</td><td>${esc(v.ini.slice(0,5))}</td><td>${esc(v.drone)}</td><td>${esc(v.piloto || '–')}</td><td>${esc(v.lote || '–')}</td><td>${esc(v.plantilla)}</td><td class="num">${tasaTxt(v)}</td><td class="num">${f2(r.real)}</td><td class="num ${rc(r.varReal)}">${pc(r.varReal)}</td>${conJust ? `<td><b>${esc(r.justTexto)}</b></td>` : ''}<td>${esc(v.sup || '–')}</td>${hayFotos ? `<td style="white-space:nowrap">${numFoto[v.id] ? `Foto ${numFoto[v.id]}` : '–'}</td>` : ''}</tr>`; }).join('') + '</tbody></table>'
     : `<p class="r-vacio">${conJust ? 'No hubo vuelos justificados en estas fechas.' : 'No quedaron vuelos pendientes de justificar.'}</p>`;
   const justCont = {}; justificados.forEach(v => { const t = calc(v).justTexto; justCont[t] = (justCont[t] || 0) + 1; });
   const coms = S.comentarios.filter(c => enRango(c.fechaVuelo));
@@ -2067,7 +2152,7 @@ function armarReporte(desde, hasta){
       <p class="r-texto">${narr}</p></section>
     <section><h2>Desglose por plantilla</h2>
       <table><thead><tr><th>Plantilla</th><th class="num">L/ha teórico</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">Litros reales</th><th class="num">Litros teóricos</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Bueno</th><th class="num">Justificar</th><th>Drones</th></tr></thead><tbody>
-      ${porPlant.map(x => `<tr><td><b>${esc(x.p || '—')}</b></td><td class="num">${f2(x.tasa)}</td><td class="num">${x.a.n}</td><td class="num">${f2(x.a.area)}</td><td class="num">${f2(x.a.litros)}</td><td class="num">${f2(x.a.teo)}</td><td class="num">${f2(x.a.real)}</td><td class="num ${rc(x.a.var)}">${pc(x.a.var)}</td><td class="num rb">${x.a.bueno}</td><td class="num">${x.a.justif}${x.a.pend ? ` (${x.a.pend} pend.)` : ''}</td><td>${esc(x.drones.join(', '))}</td></tr>`).join('')}
+      ${porPlant.map(x => `<tr><td><b>${esc(x.p || '—')}</b></td><td class="num">${x.tvTxt || f2(x.tasa)}</td><td class="num">${x.a.n}</td><td class="num">${f2(x.a.area)}</td><td class="num">${f2(x.a.litros)}</td><td class="num">${f2(x.a.teo)}</td><td class="num">${f2(x.a.real)}</td><td class="num ${rc(x.a.var)}">${pc(x.a.var)}</td><td class="num rb">${x.a.bueno}</td><td class="num">${x.a.justif}${x.a.pend ? ` (${x.a.pend} pend.)` : ''}</td><td>${esc(x.drones.join(', '))}</td></tr>`).join('')}
       ${porPlant.length > 1 ? `<tr><td><b>Total</b></td><td></td><td class="num"><b>${a.n}</b></td><td class="num"><b>${f2(a.area)}</b></td><td class="num"><b>${f2(a.litros)}</b></td><td class="num"><b>${f2(a.teo)}</b></td><td class="num"><b>${f2(a.real)}</b></td><td class="num ${rc(a.var)}"><b>${pc(a.var)}</b></td><td class="num rb"><b>${a.bueno}</b></td><td class="num"><b>${a.justif}</b></td><td></td></tr>` : ''}
       </tbody></table></section>
     <section><h2>Desempeño por drone</h2>
