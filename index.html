@@ -77,6 +77,10 @@ body.en-app .descarga-app{display:none}
 .subir{margin:0 0 14px;background:var(--panel);border:2px dashed var(--linea);border-radius:18px;padding:18px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .subir.sobre{border-color:var(--tallo)}
 .tv-btn[aria-pressed="true"]{background:var(--tallo);color:#1d1806;border-color:var(--tallo)}
+.pill.o{background:rgba(159,178,157,.18);color:var(--gris)}
+tr.oculto-v td{opacity:.6}
+tr.oculto-v td:last-child{opacity:1}
+.ocultar-btn[aria-pressed="true"]{border-color:var(--tallo);color:var(--tallo)}
 .tv-aviso{margin:6px 0 0;font-size:14px}
 .tv-campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tv-celda{font:inherit;font-weight:700;color:var(--tallo);background:rgba(226,193,96,.1);border:1px solid rgba(226,193,96,.35);border-radius:999px;padding:2px 9px;white-space:nowrap}
@@ -666,10 +670,10 @@ const COLUMNAS = [
   'FECHA','HORA INICIO','HORA FIN','DURACION','DRONE','PILOTO','UBICACION','PLANTILLA',
   'LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES',
   'LTS DIF','PORCENTAJE DE VAR','REAL APLICADO','JUSTIFICACION','VAR REAL APLICADO',
-  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO','EVIDENCIA','TV MIN','TV MAX'
+  'LOTE','SUPERVISOR','OBSERVACION','ID VUELO','ARCHIVO','EVIDENCIA','TV MIN','TV MAX','OCULTO'
 ];
 const COLORES_DRONE = ['#e0a33c','#5fa8e0','#7cc47f','#d86a9a','#a58be0','#e07a4a','#4ec1b5','#c9c95a','#9aa7b8','#ef8f8f'];
-const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla';
+const BUENO = 'Bueno', JUSTIFICAR = 'Justificar', SIN_PLANTILLA = 'Sin plantilla', OCULTOS = 'Ocultos';
 
 const S = {
   ses:null, guardados:[], pendientes:[], repetidos:0, archivo:null, nombreDrive:'',
@@ -855,7 +859,7 @@ function leerExcelDJI(buf){
     const serie = col.serie >= 0 ? String(f[col.serie]).trim() : '';
     out.push({ id: serie || `${drone}_${t.fecha}_${t.ini}_${idx}`, fecha:t.fecha, ini:t.ini, fin:t.fin || sumarDuracion(t.ini, dur), dur,
       drone, piloto: col.piloto >= 0 ? String(f[col.piloto]).trim() : '', ubic: col.ubic >= 0 ? String(f[col.ubic]).trim() : '',
-      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', evid:'', tvMin:null, tvMax:null, nuevo:true, cambio:false, ver:0 });
+      plantilla, tasa: plant[norm(plantilla)] ?? null, area, litros, nJust:'', justTxt:'', lote:'', sup:'', archivo:'', evid:'', tvMin:null, tvMax:null, oculto:false, nuevo:true, cambio:false, ver:0 });
   });
   if (!out.length) throw new Error('El archivo no tiene vuelos con área aplicada.');
   return out;
@@ -875,7 +879,7 @@ function desdeHoja(headers, rows){
       nJust:String(g(r,'OBSERVACION') ?? '').trim(), justTxt:String(g(r,'JUSTIFICACION') ?? '').trim(),
       lote:String(g(r,'LOTE') ?? '').trim(), sup:String(g(r,'SUPERVISOR') ?? '').trim(),
       archivo:String(g(r,'ARCHIVO')), evid:String(g(r,'EVIDENCIA') ?? '').trim(),
-      tvMin:num(g(r,'TV MIN')), tvMax:num(g(r,'TV MAX')), nuevo:false, cambio:false, ver:0 };
+      tvMin:num(g(r,'TV MIN')), tvMax:num(g(r,'TV MAX')), oculto: norm(g(r,'OCULTO') ?? '') === 'SI', nuevo:false, cambio:false, ver:0 };
   }).filter(v => v.area > 0);
 }
 
@@ -908,7 +912,8 @@ function calc(v){
 }
 
 /* ============ Filtros ============ */
-const todos = () => [...S.guardados, ...S.pendientes].sort((a,b) => (a.fecha+a.ini).localeCompare(b.fecha+b.ini));
+const todosAll = () => [...S.guardados, ...S.pendientes].sort((a,b) => (a.fecha+a.ini).localeCompare(b.fecha+b.ini));
+const todos = () => todosAll().filter(v => !v.oculto);
 const valLote = v => v.lote || 'Sin lote', valSup = v => v.sup || 'Sin supervisor', valPil = v => v.piloto || 'Sin piloto';
 function pasa(v){
   const F = S.F, r = calc(v);
@@ -924,7 +929,9 @@ function pasa(v){
   return true;
 }
 const visibles = () => todos().filter(pasa);
-const enTabla = () => visibles().filter(v => (!S.T.drone || v.drone === S.T.drone) && (!S.T.estado || calc(v).estado === S.T.estado));
+const enTabla = () => S.T.estado === OCULTOS
+  ? todosAll().filter(v => v.oculto && pasa(v) && (!S.T.drone || v.drone === S.T.drone))
+  : visibles().filter(v => (!S.T.drone || v.drone === S.T.drone) && (!S.T.estado || calc(v).estado === S.T.estado));
 const porGuardar = () => [...S.pendientes, ...S.guardados.filter(v => v.cambio)];
 const listaDrones = () => ordenar(todos().map(v => v.drone));
 const colorDrone = d => COLORES_DRONE[Math.max(listaDrones().indexOf(d),0) % COLORES_DRONE.length];
@@ -1424,7 +1431,9 @@ function renderTFiltros(){
   if (S.T.drone && !drones.includes(S.T.drone)) S.T.drone = '';
   document.getElementById('tDrone').innerHTML = `<option value="">Todos</option>` + drones.map(d => `<option ${d===S.T.drone?'selected':''}>${esc(d)}</option>`).join('');
   const seg = document.getElementById('tEstado');
-  seg.innerHTML = [['','Todos'],[BUENO,'Bueno (dentro del rango)'],[JUSTIFICAR,'Justificar']].map(([k,t]) => `<button type="button" aria-pressed="${S.T.estado===k}" data-e="${k}">${t}</button>`).join('');
+  const nOc = esAdmin() ? todosAll().filter(v => v.oculto).length : 0;
+  if (S.T.estado === OCULTOS && !nOc) S.T.estado = '';
+  seg.innerHTML = [['','Todos'],[BUENO,'Bueno (dentro del rango)'],[JUSTIFICAR,'Justificar'], ...(nOc ? [[OCULTOS,`Ocultos (${nOc})`]] : [])].map(([k,t]) => `<button type="button" aria-pressed="${S.T.estado===k}" data-e="${k}">${t}</button>`).join('');
   seg.querySelectorAll('button').forEach(b => b.onclick = () => { S.T.estado = b.dataset.e; renderTFiltros(); renderTabla(); });
 }
 document.getElementById('tDrone').addEventListener('change', e => { S.T.drone = e.target.value; renderTabla(); });
@@ -1440,28 +1449,30 @@ function renderTabla(){
     <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Drone</th><th class="edit">Piloto</th><th class="edit">Plantilla</th>
     <th class="num">L/ha teórico</th><th class="num">Área ha</th><th class="num">L teóricos <button type="button" class="ayuda-btn" data-ayuda="teo" aria-label="¿Cómo se calcula los litros teóricos?">?</button></th><th class="num">L reales</th><th class="num">L dif <button type="button" class="ayuda-btn" data-ayuda="dif" aria-label="¿Cómo se calcula la diferencia de litros?">?</button></th>
     <th class="num fijo">Porcentaje de var <button type="button" class="ayuda-btn" data-ayuda="pct" aria-label="¿Cómo se calcula el porcentaje de var?">?</button></th><th class="num fijo">Real aplicado <button type="button" class="ayuda-btn" data-ayuda="real" aria-label="¿Cómo se calcula el real aplicado?">?</button></th><th class="num fijo">Var real aplicado <button type="button" class="ayuda-btn" data-ayuda="var" aria-label="¿Cómo se calcula la var real aplicada?">?</button></th>
-    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th><th>Foto</th>${admin ? '' : '<th>Comentar</th>'}</tr></thead><tbody>`;
-  const lista = todos(), filas = enTabla();
+    <th>Estado</th><th class="edit">Justificación</th><th class="edit">Supervisor</th><th class="edit">Lote</th><th>Foto</th>${admin ? '<th>Ocultar</th>' : '<th>Comentar</th>'}</tr></thead><tbody>`;
+  const lista = todosAll(), filas = enTabla();
   filas.forEach(v => {
     const r = calc(v), i = lista.indexOf(v), toca = r.estado === JUSTIFICAR;
     let est = r.estado === SIN_PLANTILLA ? '<span class="pill m">Sin plantilla</span>' : r.estado === BUENO ? '<span class="pill b">Bueno</span>' : v.nJust ? '<span class="pill j">Justificado</span>' : '<span class="pill m">Justificar</span>';
     if (v.nuevo) est += ' <span class="pill n">Nuevo</span>';
+    if (v.oculto) est = '<span class="pill o">Oculto</span>' + (v.nuevo ? ' <span class="pill n">Nuevo</span>' : '');
     if (nCom[v.id]) est += ` <button type="button" class="pill j" data-vc="${esc(v.id)}" title="Ver comentarios de este vuelo">💬 ${nCom[v.id]}</button>`;
     const cJust = admin && toca ? `<select data-i="${i}" data-k="nJust" class="${v.nJust?'':'falta'}" aria-label="Justificación">${opcJ(v.nJust)}</select>`
       : `<span class="${toca?'':'tenue'}">${esc(toca ? (r.justTexto || 'Pendiente') : r.just || '–')}</span>`;
     const cSup = admin ? `<select data-i="${i}" data-k="sup" class="${v.sup || !toca ? '' : 'falta'}" aria-label="Supervisor">${opcLista(sups, v.sup)}</select>` : `<span class="${v.sup?'':'tenue'}">${esc(v.sup || '–')}</span>`;
     const cPil = admin ? `<select data-i="${i}" data-k="piloto" aria-label="Piloto">${opcLista(pils, v.piloto)}</select>` : esc(v.piloto || '–');
     const cLote = admin ? `<input class="lote" data-i="${i}" data-k="lote" value="${esc(v.lote)}" aria-label="Lote">` : esc(v.lote);
-    h += `<tr class="${toca?'fuera':''} ${v.nJust?'just':''} ${v.cambio?'cambio':''} ${v.id === S.foco ? 'foco' : ''}">
+    h += `<tr class="${v.oculto?'oculto-v':''} ${toca?'fuera':''} ${v.nJust?'just':''} ${v.cambio?'cambio':''} ${v.id === S.foco ? 'foco' : ''}">
       <td>${esc(v.fecha)}</td><td>${esc(v.ini)}</td><td>${esc(v.fin)}</td><td>${esc(v.dur)}</td><td><b>${esc(v.drone)}</b></td><td>${cPil}</td><td>${admin ? `<select class="plant" data-i="${i}" data-k="plantilla" aria-label="Plantilla">${opcP(v.plantilla)}</select>` : esc(v.plantilla)}</td>
       <td class="num">${esTV(v) ? (admin ? `<button type="button" class="tv-celda" data-tv="${i}" title="Cambiar el rango de tasa variable">${tasaTxt(v)}</button>` : `<span class="tv-celda">${tasaTxt(v)}</span>`) : v.tasa === null ? '<span class="pos">?</span>' : f2(v.tasa)}</td><td class="num">${f2(v.area)}</td><td class="num">${f2(r.ltsTeo)}</td><td class="num">${f2(v.litros)}</td><td class="num ${clase(r.dif)}">${f2(r.dif)}</td>
       <td class="num ${clase(r.pctVar)}">${pc(r.pctVar)}</td><td class="num"><b>${f2(r.real)}</b></td><td class="num ${r.dentro?'ok':clase(r.varReal)}">${pc(r.varReal)}</td>
-      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td><td>${celdaFoto(v, i, toca, admin)}</td>${admin ? '' : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
+      <td>${est}</td><td>${cJust}</td><td>${cSup}</td><td>${cLote}</td><td>${celdaFoto(v, i, toca, admin)}</td>${admin ? `<td><button type="button" class="btn chico ocultar-btn" data-oc="${i}" aria-pressed="${!!v.oculto}" title="${v.oculto ? 'Volver a mostrar este vuelo' : 'Ocultar: no cuenta en el resumen, gráficas, Excel ni reporte'}">${v.oculto ? 'Mostrar' : 'Ocultar'}</button></td>` : `<td><button type="button" class="btn chico" data-c="${i}">Comentar</button></td>`}</tr>`;
   });
   const t = document.getElementById('tablaVuelos');
   t.innerHTML = h + '</tbody>';
   const aJ = filas.filter(v => calc(v).estado === JUSTIFICAR).length;
-  document.getElementById('tConteo').textContent = `${filas.length} vuelos · ${filas.length - aJ} Bueno · ${aJ} Justificar`;
+  document.getElementById('tConteo').textContent = S.T.estado === OCULTOS ? `${filas.length} vuelos ocultos · no cuentan en el resumen, gráficas, Excel ni reporte`
+    : `${filas.length} vuelos · ${filas.length - aJ} Bueno · ${aJ} Justificar`;
   t.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => abrirAyuda(b.dataset.ayuda));
   t.querySelectorAll('[data-tv]').forEach(b => b.onclick = () => abrirTV(lista[+b.dataset.tv]));
   t.querySelectorAll('[data-foto]').forEach(b => b.onclick = () => abrirFoto(lista[+b.dataset.foto]));
@@ -1470,6 +1481,12 @@ function renderTabla(){
     return;
   }
   t.querySelectorAll('[data-vc]').forEach(b => b.onclick = () => abrirComentarios(b.dataset.vc));
+  t.querySelectorAll('[data-oc]').forEach(b => b.onclick = () => {
+    const v = lista[+b.dataset.oc]; v.oculto = !v.oculto;
+    if (!v.nuevo){ v.cambio = true; v.ver++; programarAutoguardado(); }
+    render(); renderBotonGuardar();
+    aviso(v.oculto ? `Vuelo de ${v.drone} del ${v.fecha} ${v.ini.slice(0,5)} oculto. Lo encuentras en Estado → Ocultos.` : `Vuelo de ${v.drone} del ${v.fecha} ${v.ini.slice(0,5)} visible otra vez.`, 4500);
+  });
   t.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
     const v = lista[+el.dataset.i], k = el.dataset.k;
     let val = el.value.trim();
@@ -1496,7 +1513,7 @@ function fila(v){
     v.tasa ?? '', red(v.area,4), red(r.ltsTeo,2), red(v.litros,2),
     red(r.dif,2), red(r.pctVar,4), red(r.real,2), r.just, red(r.varReal,4),
     v.lote, v.sup, v.nJust ? (Number(v.nJust) || v.nJust) : '', v.id, v.archivo, v.evid || '',
-    esTV(v) ? v.tvMin : '', esTV(v) ? v.tvMax : '' ];
+    esTV(v) ? v.tvMin : '', esTV(v) ? v.tvMax : '', v.oculto ? 'SI' : '' ];
 }
 
 async function actualizar(silencioso){
@@ -1535,7 +1552,7 @@ async function autoguardar(){
     await llamar('guardar', { file:null, headers:COLUMNAS, rows:cambios.map(fila) });
     cambios.forEach((v,i) => { if (v.ver === versiones[i]){ v.cambio = false; } });
     document.querySelectorAll('#tablaVuelos tr.cambio').forEach(tr => {
-      const el = tr.querySelector('[data-i]'); if (el && !todos()[+el.dataset.i].cambio) tr.classList.remove('cambio');
+      const el = tr.querySelector('[data-i]'); if (el && !todosAll()[+el.dataset.i].cambio) tr.classList.remove('cambio');
     });
     const h = new Date(); estadoAuto(`✓ Guardado en BOCETO a las ${dos(h.getHours())}:${dos(h.getMinutes())}`, 'ok');
   }catch(e){ console.error(e); estadoAuto('No se guardó: ' + e.message + '. Toca "Guardar cambios ahora".', 'mal'); }
@@ -1613,7 +1630,8 @@ function guardarLibro(wb, nombre){
 
 /* ============ Excel descargable con colores suaves ============ */
 document.getElementById('btnDescargar').onclick = () => {
-  const lista = enTabla();
+  const lista = enTabla().filter(v => !v.oculto);
+  if (!lista.length){ aviso('No hay vuelos para descargar (los ocultos no se descargan).'); return; }
   const borde = { style:'thin', color:{ rgb:'D9DED3' } };
   const bordes = { top:borde, bottom:borde, left:borde, right:borde };
   const cab = { font:{ bold:true, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'5B8C5F' } }, alignment:{ horizontal:'center', vertical:'center', wrapText:true }, border:bordes };
@@ -1623,12 +1641,13 @@ document.getElementById('btnDescargar').onclick = () => {
   const decCols = new Set(['LTS/HA TEORICO','AREA (HA)','LTS TEORICOS','LTS REALES','LTS DIF','REAL APLICADO']);
   const fijas = new Set(['PORCENTAJE DE VAR','REAL APLICADO','JUSTIFICACION','VAR REAL APLICADO']);
   const ws = {};
-  COLUMNAS.forEach((c, j) => ws[XLSX.utils.encode_cell({ r:0, c:j })] = { v:c, t:'s', s: fijas.has(c) ? cabFija : cab });
+  const COLS_X = COLUMNAS.filter(c => c !== 'OCULTO');
+  COLS_X.forEach((c, j) => ws[XLSX.utils.encode_cell({ r:0, c:j })] = { v:c, t:'s', s: fijas.has(c) ? cabFija : cab });
   lista.forEach((v, i) => {
-    const r = calc(v), valores = fila(v);
+    const r = calc(v), valores = fila(v).slice(0, COLS_X.length);
     const bg = r.estado === BUENO ? fondo.bueno : r.estado === JUSTIFICAR ? (v.nJust ? fondo.just : fondo.pend) : (i % 2 ? fondo.par : fondo.impar);
     valores.forEach((val, j) => {
-      const nombre = COLUMNAS[j], esNum = typeof val === 'number';
+      const nombre = COLS_X[j], esNum = typeof val === 'number';
       const s = { fill:{ fgColor:{ rgb:bg } }, border:bordes, font:{ color:{ rgb:'2B3328' } }, alignment:{ vertical:'center', horizontal: esNum ? 'right' : 'left' } };
       if (esNum && pctCols.has(nombre)){ s.numFmt = '0.00%'; if (val < 0) s.font = { color:{ rgb:'1F5FA8' } }; else if (val > 0) s.font = { color:{ rgb:'B03A2E' } }; }
       else if (esNum && decCols.has(nombre)) s.numFmt = '0.00';
@@ -1636,8 +1655,8 @@ document.getElementById('btnDescargar').onclick = () => {
       ws[XLSX.utils.encode_cell({ r:i+1, c:j })] = esNum ? { v:val, t:'n', z:s.numFmt, s } : { v:String(val ?? ''), t:'s', s };
     });
   });
-  ws['!ref'] = XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:lista.length, c:COLUMNAS.length-1 } });
-  ws['!cols'] = COLUMNAS.map(c => ({ wch: ({ FECHA:11, UBICACION:26, PLANTILLA:22, JUSTIFICACION:20, SUPERVISOR:22, 'ID VUELO':14, ARCHIVO:34 })[c] || Math.max(10, c.length + 2) }));
+  ws['!ref'] = XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:lista.length, c:COLS_X.length-1 } });
+  ws['!cols'] = COLS_X.map(c => ({ wch: ({ FECHA:11, UBICACION:26, PLANTILLA:22, JUSTIFICACION:20, SUPERVISOR:22, 'ID VUELO':14, ARCHIVO:34 })[c] || Math.max(10, c.length + 2) }));
   ws['!rows'] = [{ hpt:30 }];
   ws['!autofilter'] = { ref: ws['!ref'] };
   ws['!freeze'] = { xSplit:0, ySplit:1 };
@@ -1862,7 +1881,7 @@ const dlgTV = document.getElementById('dlgTV');
 let tvGrupo = [];
 function abrirTV(v){
   // Sin vuelo: los vuelos del Excel nuevo. Con vuelo: todos los vuelos del mismo Excel (mismo archivo).
-  tvGrupo = v ? todos().filter(x => v.archivo ? x.archivo === v.archivo : x === v) : [...S.pendientes];
+  tvGrupo = v ? todosAll().filter(x => v.archivo ? x.archivo === v.archivo : x === v) : [...S.pendientes];
   if (!tvGrupo.length) return;
   const ref = tvGrupo.find(esTV), fechas = tvGrupo.map(x => x.fecha).sort();
   const dias = fechas[0] === fechas[fechas.length-1] ? fechas[0] : `${fechas[0]} al ${fechas[fechas.length-1]}`;
@@ -2138,7 +2157,7 @@ function armarReporte(desde, hasta){
   const hoy = new Date();
 
   hoja.innerHTML = `
-    <div class="r-cab"><img src="${document.querySelector('.top .logo').src}" alt="Ingenio Madre Tierra">
+    <div class="r-cab"><img src="${document.querySelector('.lado .marca img').src}" alt="Ingenio Madre Tierra">
       <div><h1>Reporte de vuelos de drones</h1><p><b>${esc(rango)}</b></p><p>Plantilla: <b>${esc(textoPlant)}</b></p><p>Departamento de Malezas y Madurantes · Ingenio Madre Tierra</p></div>
       <div class="r-fecha">Generado el ${hoy.toLocaleDateString('es-GT')} ${dos(hoy.getHours())}:${dos(hoy.getMinutes())}<br>Creado por Cobo Cubur</div></div>
     <div class="r-franja"></div>
