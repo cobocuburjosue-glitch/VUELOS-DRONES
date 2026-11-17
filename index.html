@@ -8,7 +8,32 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="iconos/icono-192.png">
 <meta name="theme-color" content="#2e7d32">
-<script>/* MDE MT · modo día/noche compartido por las apps (clave mde_tema) */try{if(localStorage.getItem('mde_tema')==='oscuro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){}</script>
+<script>/* MDE MT · modo día/noche compartido (clave mde_tema). Abre en oscuro (Neón al amanecer). */try{if(localStorage.getItem('mde_tema')!=='claro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){document.documentElement.setAttribute('data-tema','oscuro')}</script>
+<script>
+/* ===== MDE MT · escena de amanecer (cielo, sol, cañaveral y drone) ===== */
+window.amEscena = function(o){
+  o = o || {};
+  var id = 'am' + Math.random().toString(36).slice(2, 7), w = 620, h = 220, canas = '';
+  for (var x = 6; x < w + 20; x += 34){
+    var a = 38 + ((x * 7) % 17);
+    canas += '<path class="am-cana-v" style="animation-delay:' + ((x % 5) * .3) + 's" d="M' + x + ' 224 q -5 -' + a + ' 2 -' + (a + 30) + ' M' + x + ' ' + (224 - a * .9) + ' q 15 -12 27 -6 M' + (x + 2) + ' ' + (224 - a * 1.4) + ' q -15 -10 -26 -2" stroke="var(--am-cana)" stroke-width="4" fill="none" stroke-linecap="round"/>';
+  }
+  var est = '';
+  [[40,20],[120,36],[210,14],[300,28],[90,60],[250,50],[380,22],[160,84]].forEach(function(p){ est += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="1.2" fill="#fff" style="opacity:var(--am-estrella)"/>'; });
+  return '<svg class="am-escena" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>'
+    + '<linearGradient id="' + id + 'c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--am-cielo1)"/><stop offset=".45" style="stop-color:var(--am-cielo2)"/><stop offset=".78" style="stop-color:var(--am-cielo3)"/><stop offset="1" style="stop-color:var(--am-cielo4)"/></linearGradient>'
+    + '<radialGradient id="' + id + 's"><stop offset="0" style="stop-color:var(--am-sol1)"/><stop offset=".5" style="stop-color:var(--am-sol2)"/><stop offset="1" style="stop-color:var(--am-sol2);stop-opacity:0"/></radialGradient></defs>'
+    + '<rect width="' + w + '" height="' + h + '" fill="url(#' + id + 'c)"/>' + est
+    + '<circle class="am-sol" cx="' + (o.solX || 470) + '" cy="168" r="72" fill="url(#' + id + 's)"/>'
+    + '<path d="M0 170 C 120 140, 240 160, 360 142 S 560 130, 620 146 L620 220 L0 220 Z" style="fill:var(--am-loma)"/>'
+    + '<path d="M0 196 C 160 176, 330 200, 620 178 L620 220 L0 220 Z" style="fill:var(--am-campo)"/>' + canas
+    + '<path d="M0 196 C 160 176, 330 200, 620 178" fill="none" style="stroke:var(--am-linea)" stroke-width="1.5" opacity=".75"/></svg>';
+};
+/* Drone volando con su aspersión. src: ruta de la imagen del drone sin fondo. */
+window.amDron = function(src, color){
+  return '<div class="am-dron am-vuela"><img src="' + src + '" alt=""><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><polygon class="am-fan" points="50,0 16,60 84,60" fill="' + (color || 'var(--am-menta)') + '" fill-opacity=".32"/></svg></div>';
+};
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
@@ -491,6 +516,100 @@ html[data-tema="oscuro"] .anillo svg [fill="#56635a"]{fill:#97a89b}
 .login-caja header{position:relative}
 .tema-login{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;cursor:pointer}
 .hb.tema-top{width:36px;padding:0;justify-content:center}
+/* ===================== MDE MT · NEÓN AL AMANECER (común a las 4 apps) ===================== */
+:root{
+  --am-cielo1:#ffe9cf; --am-cielo2:#ffd2a6; --am-cielo3:#f6a877; --am-cielo4:#f08d63;
+  --am-sol1:#fff7dc; --am-sol2:#ffd27a; --am-loma:#e9b48f; --am-campo:#5d8f4f; --am-cana:#2f5a2c; --am-linea:#2e7d32;
+  --am-estrella:0; --am-menta:#2e7d32; --am-ambar:#c46a1c;
+}
+html[data-tema="oscuro"]{
+  --am-cielo1:#151027; --am-cielo2:#4a2440; --am-cielo3:#b85a38; --am-cielo4:#eea55a;
+  --am-sol1:#fff1c4; --am-sol2:#ffcf75; --am-loma:#33182a; --am-campo:#13241a; --am-cana:#0a1910; --am-linea:#34d89c;
+  --am-estrella:.7; --am-menta:#34d89c; --am-ambar:#ff9f5a;
+}
+html[data-tema="oscuro"] body{background-image:radial-gradient(1100px 520px at 88% -8%,rgba(255,159,90,.08),transparent 60%),radial-gradient(900px 460px at 6% 0%,rgba(52,216,156,.05),transparent 60%);background-attachment:fixed}
+.am-escena{position:absolute;inset:0;width:100%;height:100%;display:block}
+.am-dron{position:absolute;left:30%;top:6%;width:42%;max-width:270px;pointer-events:none}
+.am-dron img{display:block;width:100%;filter:drop-shadow(0 10px 14px rgba(0,0,0,.35))}
+.am-dron svg{display:block;width:46%;height:70px;margin:-10px auto 0}
+.am-eyebrow{color:var(--am-ambar);font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:none}
+@media (prefers-reduced-motion: no-preference){
+  .am-vuela{animation:am-vuela 11s ease-in-out infinite alternate}
+  .am-sol{animation:am-sol 14s ease-in-out infinite alternate}
+  .am-fan{transform-box:fill-box;transform-origin:50% 0;animation:am-abrir 1.1s cubic-bezier(.2,.7,.2,1) backwards .3s}
+  .am-sube{animation:am-subir .55s cubic-bezier(.2,.7,.2,1) backwards}
+  .am-sube:nth-child(2){animation-delay:.05s}.am-sube:nth-child(3){animation-delay:.1s}.am-sube:nth-child(4){animation-delay:.15s}.am-sube:nth-child(n+5){animation-delay:.2s}
+  .am-latir{animation:am-latir 1.8s ease-in-out infinite}
+  .am-cana-v{transform-origin:bottom;transform-box:fill-box;animation:am-viento 4s ease-in-out infinite alternate}
+}
+@keyframes am-vuela{from{transform:translate(-26%,6px)}to{transform:translate(22%,-6px)}}
+@keyframes am-sol{to{transform:translateY(-18px)}}
+@keyframes am-abrir{from{transform:scaleX(0)}}
+@keyframes am-subir{from{opacity:0;transform:translateY(14px)}}
+@keyframes am-latir{50%{opacity:.35}}
+@keyframes am-viento{to{transform:skewX(-3deg)}}
+/* ===================== NEÓN AL AMANECER (formal) · Vuelos ===================== */
+html[data-tema="oscuro"]{
+  --verde-fijo:#0b1215; --lado:#0b1215;
+  --caña:#34d89c; --caña-2:#2fcf95; --tallo:#2fcf95; --neon:#34d89c; --oro:#ffd166; --suave:#10261f;
+  --papel:#080c0e; --tinta:#e8f3ef; --gris:#8fa9a4; --linea:#1e3236; --panel:#0e1517; --campo:#121c1f;
+  --bien:#34d89c; --alerta:#ff6b7f; --aviso:#ffd166; --azul:#5cc8ff;
+}
+html[data-tema="oscuro"] .cab-app,html[data-tema="oscuro"] .dlg-cab,html[data-tema="oscuro"] .r-barra{background:linear-gradient(110deg,#0b1215 0%,#0f191b 55%,#26141f 100%);border-bottom:1px solid #1e3236}
+html[data-tema="oscuro"] #login{background:linear-gradient(180deg,#151027 0%,#3b1f38 22%,#080c0e 34%)}
+html[data-tema="oscuro"] .login-caja header{background:linear-gradient(160deg,#0f191b,#26141f)}
+html[data-tema="oscuro"] .panel,html[data-tema="oscuro"] .dato,html[data-tema="oscuro"] .tarjeta-dr,html[data-tema="oscuro"] .filtros,html[data-tema="oscuro"] .login-caja{border:1px solid #1e3236!important}
+html[data-tema="oscuro"] .panel:hover,html[data-tema="oscuro"] .dato:hover,html[data-tema="oscuro"] .tarjeta-dr:hover{border-color:rgba(52,216,156,.45)!important;box-shadow:0 0 24px rgba(52,216,156,.10)!important}
+html[data-tema="oscuro"] .btn{background:#121c1f;color:#e8f3ef;border:1px solid #1e3236}
+html[data-tema="oscuro"] .btn.prim,html[data-tema="oscuro"] .btn.verde,html[data-tema="oscuro"] .chip[aria-pressed="true"]{background:#2fcf95;color:#03170f;border-color:#2fcf95;box-shadow:0 0 16px rgba(52,216,156,.25)}
+html[data-tema="oscuro"] th{background:#0f2a26;color:#34d89c}
+html[data-tema="oscuro"] th.fijo{background:#123129}
+html[data-tema="oscuro"] tbody tr:nth-child(even) td{background:#0b1215}
+html[data-tema="oscuro"] .alerta-neon{background:#1c0d12;border:1px solid #5a1a26}
+html[data-tema="oscuro"] .alerta-neon b{color:#ff6b7f}
+html[data-tema="oscuro"] .alerta-neon span{color:#e9b9c0}
+html[data-tema="oscuro"] .nav-it.activo,html[data-tema="oscuro"] .nav-it.activo:hover{background:rgba(52,216,156,.14);color:#34d89c}
+html[data-tema="oscuro"] .seg button[aria-pressed="true"]{background:#2fcf95;color:#03170f}
+html[data-tema="oscuro"] .dato b{text-shadow:0 0 14px rgba(232,243,239,.15)}
+html[data-tema="oscuro"] .anillo svg [stroke="#2e7d32"]{stroke:#34d89c;filter:drop-shadow(0 0 1.5px #34d89c)}
+html[data-tema="oscuro"] .anillo svg [stroke="#fde4de"]{stroke:#2a0d14}
+html[data-tema="oscuro"] .conexion .punto{box-shadow:0 0 10px var(--bien)}
+/* ----- encabezado de amanecer ----- */
+.am-hero{display:flex;flex-wrap:wrap;padding:0!important;overflow:hidden;margin-bottom:14px}
+.am-hero .txt{flex:1 1 340px;padding:24px 26px;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.am-hero h2{font-size:clamp(23px,3.4vw,30px);line-height:1.15;margin:2px 0 4px}
+.am-hero p{margin:0 0 12px;color:var(--gris)}
+.am-hero p b{color:var(--tinta)}
+.am-hero .acc{display:flex;flex-wrap:wrap;gap:10px}
+.am-hero .fig{flex:1 1 420px;min-height:230px;position:relative;overflow:hidden}
+/* ----- tarjetas de drone: cielo, drone sin fondo y aspersión ----- */
+.dr-ilus.am-cielo{width:auto;margin:2px -4px 0;position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#ffe1c4 0%,#ffc79a 55%,#f39a6b 100%);padding:10px 10px 0}
+.am-cielo .sol-dr{z-index:0;position:absolute;right:12px;top:30px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,#fff6d6 0,#ffd27a 55%,rgba(255,210,122,0) 72%)}
+.am-cielo img,.am-cielo .chorro,.am-cielo .cana-dr{z-index:1}
+.am-cielo img{position:relative;display:block;width:86%;height:112px;object-fit:contain;margin:0 auto;filter:drop-shadow(0 8px 8px rgba(60,30,20,.25))}
+.am-cielo .chorro{position:relative;display:block;width:58%;height:50px;margin:-6px auto 0}
+.am-cielo .cana-dr{position:relative;height:16px;margin:0 -10px;background:repeating-linear-gradient(100deg,#2f5a2c 0 6px,#3f7038 6px 12px);border-top:2px solid #2e7d32}
+html[data-tema="oscuro"] .am-cielo .cana-dr{background:repeating-linear-gradient(100deg,#14261a 0 6px,#1f3a25 6px 12px);border-top-color:#34d89c;box-shadow:0 -2px 12px rgba(52,216,156,.4)}
+.am-cielo .dr-var{position:absolute;left:10px;top:10px;background:rgba(24,32,26,.78);color:#fff;font-weight:900;font-size:12px;border-radius:999px;padding:3px 9px}
+.tarjeta-dr .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tarjeta-dr .mini div{background:var(--campo);border-radius:14px;padding:8px 11px}
+html[data-tema="oscuro"] .tarjeta-dr .mini div{border:1px solid #1e3236}
+.tarjeta-dr .mini small{display:block;font-size:11.5px;color:var(--gris);font-weight:800}
+.tarjeta-dr .mini b{font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
+/* ----- pilotos y supervisores: solo nombres ----- */
+.am-personas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px}
+.am-personas > section{flex:1 1 340px}
+.am-per{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--linea)}
+.am-per:last-child{border-bottom:0}
+.am-per b{font-size:15px} .am-per small{color:var(--gris);font-size:12.5px;font-weight:700}
+.am-per .ha{grid-row:span 2;font-size:19px;font-weight:900;text-align:right;font-variant-numeric:tabular-nums}
+.am-per .ha small{font-size:11px;margin-left:3px}
+.am-per .pista{grid-column:1;height:8px;background:var(--campo);border-radius:999px;overflow:hidden}
+.am-per .pista i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#2fcf95,#1fbf86)}
+.am-per.sup .pista i{background:linear-gradient(90deg,#ffd166,#f2b84b)}
+@media (prefers-reduced-motion: no-preference){ .am-per .pista i{animation:am-crece .9s cubic-bezier(.2,.7,.2,1) backwards .15s;transform-origin:left} }
+@keyframes am-crece{from{transform:scaleX(0)}}
+@media (max-width:760px){ .am-hero .fig{min-height:180px;flex-basis:100%} .am-hero .txt{padding:18px} }
 </style>
 </head>
 <body>
@@ -566,6 +685,7 @@ html[data-tema="oscuro"] .anillo svg [fill="#56635a"]{fill:#97a89b}
   <div id="vacio" class="vacio panel">Cargando vuelos…</div>
 
   <div id="tablero" class="oculto">
+    <section class="panel am-hero am-sube" id="amHero"></section>
     <section class="filtros" aria-label="Filtros">
       <div class="fila">
         <div><label for="fDesde">Desde</label><input type="date" id="fDesde"></div>
@@ -601,6 +721,7 @@ html[data-tema="oscuro"] .anillo svg [fill="#56635a"]{fill:#97a89b}
     <section class="panel" style="margin-bottom:14px"><details class="ver-tabla"><summary>Ver resumen por drone en tabla (con total)</summary><div style="overflow-x:auto"><table id="tablaDrones"></table></div></details></section>
 
     <div id="secPersonas">
+      <div class="am-personas" id="amPersonas"></div>
       <section class="panel"><div class="panel-cab"><div><h3>Hectáreas por piloto y supervisor</h3><p class="nota">Hectáreas aplicadas por cada persona, separando vuelos Bueno, justificados y pendientes de justificar.</p></div><div class="seg chico" id="segPersona" role="group" aria-label="Ver por"></div></div>
         <div class="persona"><div class="graf" id="cajaPersona"><canvas id="gPersona"></canvas></div><div style="overflow-x:auto"><table id="tablaPersona"></table></div></div></section>
     </div>
@@ -1207,6 +1328,7 @@ function renderResumen(){
       <div class="dato"><span>Variación total</span><b class="${clase(a.var)}">${pc(a.var)}</b><small>${f2(a.real)} L/ha real promedio</small></div>
       ${a.sinTasa?`<div class="dato alerta"><span>Plantilla desconocida</span><b>${a.sinTasa}</b><small>vuelos sin L/ha teórico</small></div>`:''}
     </div>`;
+  amRenderHero(lista, a);
   const al = document.getElementById('alertaNeon');
   if (al){ al.classList.toggle('oculto', !a.pend);
     document.getElementById('alertaTxt').textContent = `${a.pend} ${a.pend === 1 ? 'vuelo fuera' : 'vuelos fuera'} de ±${S.cfg.tol}% sin justificar en el período filtrado`;
@@ -1214,6 +1336,22 @@ function renderResumen(){
   const ir = document.getElementById('irPendientes');
   if (ir){ const go = () => { S.T.estado = JUSTIFICAR; S.T.drone = ''; renderTFiltros(); renderTabla(); document.getElementById('secVuelos').scrollIntoView({behavior:'smooth'}); };
     ir.onclick = go; ir.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } }; }
+}
+function amRenderHero(lista, a){
+  const h = document.getElementById('amHero'); if (!h) return;
+  const v = a.var === null || a.var === undefined ? null : a.var * 100, dentro = v !== null && Math.abs(v) <= S.cfg.tol;
+  const txtVar = v === null ? '' : `, un <b class="${clase(a.var)}">${Math.abs(v).toFixed(2)}% ${v >= 0 ? 'más' : 'menos'}</b> de lo teórico`;
+  const adm = S.ses && S.ses.rol === 'admin';
+  const fig = h.querySelector('.fig');
+  h.innerHTML = `<div class="txt"><small class="am-eyebrow">${esc(rangoTexto(lista))}</small>
+      <h2>${f2(a.area)} ha aplicadas en ${a.n} vuelos</h2>
+      <p>Los drones aplicaron <b>${f2(a.litros)} L</b>${txtVar}.</p>
+      ${adm ? `<div class="acc"><button class="btn prim" type="button" data-am="subir">Subir Excel de DJI</button><button class="btn" type="button" data-am="act">Actualizar</button></div>` : ''}</div>`;
+  if (fig) h.appendChild(fig); else h.insertAdjacentHTML('beforeend', '<div class="fig">' + amEscena() + '</div>');
+  const fan = h.querySelector('.fig .am-fan'); if (fan) fan.setAttribute('fill', v === null || dentro ? 'var(--am-menta)' : '#ff6b7f');
+  const b1 = h.querySelector('[data-am="subir"]'), b2 = h.querySelector('[data-am="act"]');
+  if (b1) b1.onclick = () => document.getElementById('btnSubirTop').click();
+  if (b2) b2.onclick = () => document.getElementById('btnActualizar').click();
 }
 function rangoTexto(lista){
   const fs = lista.map(v => v.fecha).filter(Boolean).sort();
@@ -1439,11 +1577,23 @@ function resumenPersonas(lista, clave){
 }
 const textoJust = j => Object.entries(j).sort((a,b) => b[1] - a[1]).map(([t,n]) => `${t} (${n})`).join(', ');
 
+function amRenderPersonas(){
+  const caja = document.getElementById('amPersonas'); if (!caja) return;
+  const lista = visibles();
+  const bloque = (titulo, clave, cls) => {
+    const fs = resumenPersonas(lista, clave).filter(f => f.p && f.a.n).sort((x, y) => y.a.area - x.a.area);
+    const max = Math.max(1, ...fs.map(f => f.a.area));
+    return `<section class="panel"><h3>${titulo}</h3>${fs.length ? fs.map(f => `<div class="am-per ${cls}"><div><b>${esc(f.p)}</b><br><small>${f.a.n} vuelos · <span class="${clase(f.a.var)}">${pc(f.a.var)}</span></small></div>
+      <b class="ha">${f2(f.a.area)}<small>ha</small></b><div class="pista"><i style="width:${Math.max(3, f.a.area / max * 100).toFixed(1)}%"></i></div></div>`).join('') : '<p class="nota">Sin datos en este período.</p>'}</section>`;
+  };
+  caja.innerHTML = bloque('Pilotos', valPil, 'pil') + bloque('Supervisores', valSup, 'sup');
+}
 function renderPersona(){
   const seg = document.getElementById('segPersona');
   seg.innerHTML = [['piloto','Por piloto'],['sup','Por supervisor']].map(([k,t]) => `<button type="button" aria-pressed="${S.persona===k}" data-p="${k}">${t}</button>`).join('');
   seg.querySelectorAll('button').forEach(b => b.onclick = () => { S.persona = b.dataset.p; renderPersona(); });
   const esPil = S.persona === 'piloto', filas = resumenPersonas(visibles(), esPil ? valPil : valSup);
+  amRenderPersonas();
   document.getElementById('cajaPersona').style.height = Math.max(260, filas.length * 34 + 90) + 'px';
   const r2 = x => +x.toFixed(2);
   grafica('gPersona', { type:'bar', data:{ labels:filas.map(f => f.p), datasets:[
@@ -1581,6 +1731,14 @@ function droneSvg(v, dentro){
     <text x="80" y="41" text-anchor="middle" font-family="Nunito,sans-serif" font-size="11" font-weight="900" fill="#ffffff">${txt}</text>
     <path d="M76 70 L84 70 L82 80 L78 80 Z" fill="#2f3b33"/><circle cx="80" cy="82" r="2.4" fill="#2f3b33"/></svg>`;
 }
+function amCieloDron(v, dentro){
+  const tol = S.cfg.tol || 5, k = v === null ? 0 : Math.max(-2.2, Math.min(2.2, v / tol)), half = 50 * (1 + k * 0.24) * 0.92;
+  const fan = v === null ? '#b9c4bc' : dentro ? '#2fcf95' : '#ff6b7f', txt = v === null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2) + '%';
+  return `<div class="sol-dr"></div><img src="dron.webp" alt="">
+    <svg class="chorro" viewBox="0 0 180 64" preserveAspectRatio="none" aria-hidden="true"><polygon points="90,0 22,64 158,64" fill="#ffffff" fill-opacity=".25"/>
+    <polygon class="am-fan" points="90,0 ${(90-half).toFixed(1)},64 ${(90+half).toFixed(1)},64" fill="${fan}" fill-opacity=".6"/>
+    <polyline points="37,64 90,0 143,64" fill="none" stroke="#3b1d2a" stroke-width="1.6" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/></svg><div class="cana-dr"></div>`;
+}
 function renderDrones(){
   const lista = visibles(), drones = ordenar(lista.map(v => v.drone));
   let h = `<thead><tr><th>Drone</th><th class="num">Vuelos</th><th class="num">Ha</th><th class="num">Litros</th><th class="num">L/ha real</th><th class="num">Var.</th><th class="num">Bueno</th><th class="num">Justificar</th></tr></thead><tbody>`;
@@ -1592,8 +1750,8 @@ function renderDrones(){
     const a = agregado(lista.filter(v => v.drone === d)), lt = a.teo && a.area ? a.teo / a.area : null;
     const vv = a.var === null || a.var === undefined ? null : a.var * 100, dentro = vv !== null && Math.abs(vv) <= S.cfg.tol;
     return `<article class="tarjeta-dr"><div class="cab"><span class="nom"><i style="background:${colorDrone(d)}"></i>${esc(d)}</span><span class="pill ${vv === null ? '' : dentro ? 'b' : 'm'}">${pc(a.var)}</span></div>
-      <div class="dr-ilus">${droneSvg(vv, dentro)}</div>
-      <dl><dt>Vuelos</dt><dd>${a.n}</dd><dt>Hectáreas</dt><dd>${f2(a.area)}</dd><dt>Litros</dt><dd>${f2(a.litros)}</dd><dt>L/ha real · teórico</dt><dd>${f2(a.real)} · ${f2(lt)}</dd></dl>
+      <div class="dr-ilus am-cielo">${amCieloDron(vv, dentro)}</div>
+      <div class="mini"><div><small>Vuelos</small><b>${a.n}</b></div><div><small>Hectáreas</small><b>${f2(a.area)}</b></div><div><small>L/ha real</small><b>${f2(a.real)}</b></div><div><small>L/ha teórico</small><b>${f2(lt)}</b></div></div>
       <div class="pie-t"><span class="ok">${a.bueno} Bueno</span><button type="button" data-d="${esc(d)}" ${a.justif?'':'disabled'}>${a.justif ? `${a.justif} por justificar${a.pend?` (${a.pend} pend.)`:''}` : 'Nada por justificar'}</button></div></article>`;
   }).join('');
   document.querySelectorAll('#tarjetasDrones button[data-d]').forEach(b => b.onclick = () => {
@@ -2388,7 +2546,7 @@ if (S.ses && S.ses.token) entrarApp();
   var K = 'mde_tema';
   var LUNA = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
   var SOL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
-  function leer(){ try { return localStorage.getItem(K) === 'oscuro' ? 'oscuro' : 'claro'; } catch(e){ return 'claro'; } }
+  function leer(){ try { return localStorage.getItem(K) === 'claro' ? 'claro' : 'oscuro'; } catch(e){ return 'oscuro'; } }
   function aplicar(t){
     var r = document.documentElement;
     if (t === 'oscuro') r.setAttribute('data-tema', 'oscuro'); else r.removeAttribute('data-tema');
@@ -2400,7 +2558,7 @@ if (S.ses && S.ses.token) entrarApp();
       b.setAttribute('aria-label', b.title);
     }
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m){ if (!m.getAttribute('data-claro')) m.setAttribute('data-claro', m.content); m.content = t === 'oscuro' ? '#14301a' : m.getAttribute('data-claro'); }
+    if (m){ if (!m.getAttribute('data-claro')) m.setAttribute('data-claro', m.content); m.content = t === 'oscuro' ? '#0b1215' : m.getAttribute('data-claro'); }
     try { window.dispatchEvent(new CustomEvent('mde-tema', { detail: t })); } catch(e){}
   }
   window.mdeTema = {
@@ -2412,7 +2570,7 @@ if (S.ses && S.ses.token) entrarApp();
     var b = e.target.closest && e.target.closest('[data-tema-btn]');
     if (b){ e.preventDefault(); window.mdeTema.alternar(); }
   });
-  window.addEventListener('storage', function(e){ if (e.key === K) aplicar(e.newValue === 'oscuro' ? 'oscuro' : 'claro'); });
+  window.addEventListener('storage', function(e){ if (e.key === K) aplicar(e.newValue === 'claro' ? 'claro' : 'oscuro'); });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ aplicar(leer()); });
   else aplicar(leer());
 })();
