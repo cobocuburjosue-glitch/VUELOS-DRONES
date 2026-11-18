@@ -631,6 +631,7 @@ html[data-tema="oscuro"] #reporte .hoja td{background:#fff;color:#18201a;border-
 html[data-tema="oscuro"] #reporte .hoja tr:nth-child(even) td{background:#f8faf7}
 html[data-tema="oscuro"] #reporte .hoja .rp{color:#a93224}html[data-tema="oscuro"] #reporte .hoja .rn{color:#1f5fa8}html[data-tema="oscuro"] #reporte .hoja .rb{color:#1f6b25}
 </style>
+<script src="../MDE-MT/config.js"></script>
 </head>
 <body>
 
@@ -1088,6 +1089,7 @@ document.getElementById('formLogin').addEventListener('submit', async e => {
     const dispositivo = window.AppAndroid ? 'App Android' : (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'Navegador del teléfono' : 'Computadora');
     const j = await llamar('login', { usuario:document.getElementById('usuario').value, clave:document.getElementById('clave').value, recordar, ...(publico ? { ...visitante, dispositivo } : {}) }, false);
     S.ses = { token:j.token, rol:j.rol, nombre:j.nombre, ...(publico ? { visitante } : {}) };
+    if (window.mdeRegistrarAcceso) mdeRegistrarAcceso('drones', document.getElementById('usuario').value, document.getElementById('clave').value, publico ? { ...visitante } : null);
     limpiarVisitante();
     guardarSesion(S.ses, recordar);
     entrarApp();
